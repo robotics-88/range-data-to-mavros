@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>depth_image_to_mavlink</name>
+  <version>1.0.0</version>
+  <license>commercial</license>
+
+  <description>Converts depth images to mavlink obstacle distance and distance sensor messages.</description>
+
+  <author email="erin@robotics88.com">Erin Linebarger</author>
+  <maintainer email="erin@robotics88.com">Erin Linebarger</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>cv_bridge</depend>
+  <depend>image_geometry</depend>
+  <depend>message_filters</depend>
+  <depend>roscpp</depend>
+  <depend>roslib</depend>
+  <depend>std_msgs</depend>
+
+  <test_depend>roslaunch</test_depend>
+</package>
