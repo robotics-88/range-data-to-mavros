@@ -14,6 +14,7 @@ Author: Erin Linebarger <erin@robotics88.com>
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/LaserScan.h>
 
 namespace depth_image_to_mavlink {
 /**
@@ -44,6 +45,8 @@ class Depth_image_to_mavlink {
         boost::shared_ptr<Sync> sync_;
 
         std::vector<float> latest_distances_;
+        double last_obstacle_distance_sent_ms;
+        ros::Publisher mavros_obstacle_publisher_;
 
         // Obstacle params based on librealsense example
         bool obstacle_params_set_;
@@ -60,13 +63,16 @@ class Depth_image_to_mavlink {
         int distances_array_length;
         double min_depth_m;
         double max_depth_m;
+        double min_angle_rad;
+        double max_angle_rad;
 
         double vehicle_pitch_rad;
         bool vehicle_state_received_;
 
         void setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info);
-        void distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<double> &distances);
+        void distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances);
         int findObstacleLineHeight();
+        void sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances);
 };
 
 }

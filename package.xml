@@ -13,6 +13,7 @@
 
   <depend>cv_bridge</depend>
   <depend>image_geometry</depend>
+  <depend>mavros_msgs</depend>
   <depend>message_filters</depend>
   <depend>roscpp</depend>
   <depend>roslib</depend>

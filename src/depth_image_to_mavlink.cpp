@@ -15,10 +15,14 @@ Depth_image_to_mavlink::Depth_image_to_mavlink(ros::NodeHandle& node)
   , nh_(node)
   , depth_topic_("zed2i/zed_node/depth/depth_registered")
   , depth_info_topic_("zed2i/zed_node/depth/camera_info")
+  , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
   , obstacle_params_set_(false)
+  , depth_scale(1.0)
   , obstacle_line_height_ratio(0.18)
   , obstacle_line_thickness_pixel(10)
   , distances_array_length(72)
+  , min_depth_m(1.0)
+  , max_depth_m(10.0)
   , vehicle_state_received_(false)
 {   
     private_nh_.param<std::string>("depth_image", depth_topic_, depth_topic_);
@@ -30,6 +34,7 @@ Depth_image_to_mavlink::Depth_image_to_mavlink(ros::NodeHandle& node)
     sync_->registerCallback(boost::bind(&Depth_image_to_mavlink::depthImageCallback, this, _1, _2));
 
     depth_smoothed_publisher_ = nh_.advertise<sensor_msgs::Image>("depth_smoothed", 10);
+    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>("/mavros/obstacle/send", 10);
 }
 
 Depth_image_to_mavlink::~Depth_image_to_mavlink(){}
@@ -45,8 +50,10 @@ void Depth_image_to_mavlink::depthImageCallback(const sensor_msgs::ImageConstPtr
         setObstacleDistanceParams(info);
     }
 
-    std::vector<double> distances;
+    std::vector<float> distances;
     distancesFromDepthImage(depth_mat, distances);
+
+    sendObstacleDistanceMessage(msg->header, distances);
 
     // Clean depth image
     cv::Mat depth_smoothed, inpaintMask;
@@ -86,6 +93,9 @@ void Depth_image_to_mavlink::setObstacleDistanceParams(const sensor_msgs::Camera
     ROS_INFO("INFO: OBSTACLE_DISTANCE coverage: from %0.3f to %0.3f degrees",
         (angle_offset, angle_offset + increment_f * distances_array_length));
 
+    min_angle_rad = M_PI * angle_offset / 180;
+    max_angle_rad = M_PI * angle_offset + increment_f * distances_array_length / 180;
+
     // TODO decide if bring back checks or remove
     // # Sanity check for depth configuration
     // if obstacle_line_height_ratio < 0 or obstacle_line_height_ratio > 1:
@@ -99,7 +109,7 @@ void Depth_image_to_mavlink::setObstacleDistanceParams(const sensor_msgs::Camera
     obstacle_params_set_ = true;
 }
 
-void Depth_image_to_mavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<double> &distances){
+void Depth_image_to_mavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances){
     // # Parameters for obstacle distance message
     int step = std::floor(((double) depth_width) / distances_array_length);
 
@@ -140,6 +150,7 @@ void Depth_image_to_mavlink::distancesFromDepthImage(const cv::Mat &depth_mat, s
         cv::minMaxLoc( submat, &min_point_in_scan, &maxVal, &minLoc, &maxLoc );
         // double min_point_in_scan = std::min(depth_mat[int(lower_pixel):int(upper_pixel), int(i * step)]);
         float dist_m = min_point_in_scan * depth_scale;
+        ROS_INFO("dep scale %f, min pt %f, final dist %f", depth_scale, min_point_in_scan, dist_m);
 
         // # Note that dist_m is in meter, while distances[] is in cm.
         if (dist_m > min_depth_m and dist_m < max_depth_m) {
@@ -180,5 +191,78 @@ int Depth_image_to_mavlink::findObstacleLineHeight() {
     
     return obstacle_line_height;
 }
+
+// # https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
+void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances) {
+    ROS_INFO("entered obs dist msg send");
+    if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
+        // # no new frame
+        ROS_WARN("no new frame");
+        return;
+    }
+    last_obstacle_distance_sent_ms = ros::Time::now().toSec();
+    if (!obstacle_params_set_){
+        ROS_WARN("params not set");
+        return;
+    }
+    else {
+        sensor_msgs::LaserScan obstacle_msg;
+        obstacle_msg.header = header;
+        obstacle_msg.range_max = max_depth_m / 100;
+        obstacle_msg.range_min = min_depth_m / 100;
+        obstacle_msg.ranges = distances;
+        obstacle_msg.angle_increment = increment_f;
+        obstacle_msg.time_increment = 0;
+        obstacle_msg.scan_time = 0;
+        obstacle_msg.angle_max = max_angle_rad;
+        obstacle_msg.angle_min = min_angle_rad;
+
+        mavros_obstacle_publisher_.publish(obstacle_msg);
+
+        // Prior code example below- uses Mavlink message directly
+        // conn.mav.obstacle_distance_send(
+        //     current_time_us,    // us Timestamp (UNIX time or time since system boot)
+        //     0,                  // sensor_type, defined here: https://mavlink.io/en/messages/common.html#MAV_DISTANCE_SENSOR
+        //     distances,          // distances,    uint16_t[72],   cm
+        //     0,                  // increment,    uint8_t,        deg
+        //     min_depth_cm,	    // min_distance, uint16_t,       cm
+        //     max_depth_cm,       // max_distance, uint16_t,       cm
+        //     increment_f,	    // increment_f,  float,          deg
+        //     angle_offset,       // angle_offset, float,          deg
+        //     12                  // MAV_FRAME, vehicle-front aligned: https://mavlink.io/en/messages/common.html#MAV_FRAME_BODY_FRD    
+        // )
+    }
+}
+
+// # https://mavlink.io/en/messages/common.html#DISTANCE_SENSOR
+// void Depth_image_to_mavlink::sendSingleDistanceSensorMsg(distance, orientation) {
+//     // # Average out a portion of the centermost part
+//     conn.mav.distance_sensor_send(
+//         0,                  # ms Timestamp (UNIX time or time since system boot) (ignored)
+//         min_depth_cm,       # min_distance, uint16_t, cm
+//         max_depth_cm,       # min_distance, uint16_t, cm
+//         distance,           # current_distance,	uint16_t, cm	
+//         0,	                # type : 0 (ignored)
+//         0,                  # id : 0 (ignored)
+//         orientation,        # orientation
+//         0                   # covariance : 0 (ignored)
+//     )
+// }
+
+// // # https://mavlink.io/en/messages/common.html#DISTANCE_SENSOR
+// void Depth_image_to_mavlink::send_distance_sensor_message():
+//     global distances
+//     # Average out a portion of the centermost part
+//     curr_dist = int(np.mean(distances[33:38]))
+//     conn.mav.distance_sensor_send(
+//         0,# ms Timestamp (UNIX time or time since system boot) (ignored)
+//         min_depth_cm,   # min_distance, uint16_t, cm
+//         max_depth_cm,   # min_distance, uint16_t, cm
+//         curr_dist,      # current_distance,	uint16_t, cm	
+//         0,	            # type : 0 (ignored)
+//         0,              # id : 0 (ignored)
+//         int(camera_facing_angle_degree / 45),              # orientation
+//         0               # covariance : 0 (ignored)
+//     )
 
 }

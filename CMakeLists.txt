@@ -5,6 +5,7 @@ project(depth_image_to_mavlink)
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_geometry
+  mavros_msgs
   message_filters
   roscpp
   roslib
