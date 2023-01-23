@@ -21,7 +21,7 @@ Depth_image_to_mavlink::Depth_image_to_mavlink(ros::NodeHandle& node)
   , obstacle_line_height_ratio(0.18)
   , obstacle_line_thickness_pixel(10)
   , distances_array_length(72)
-  , min_depth_m(1.0)
+  , min_depth_m(0.2)
   , max_depth_m(10.0)
   , vehicle_state_received_(false)
 {   
@@ -88,13 +88,13 @@ void Depth_image_to_mavlink::setObstacleDistanceParams(const sensor_msgs::Camera
 
     angle_offset = camera_facing_angle_degree - (depth_hfov_deg / 2);
     increment_f = depth_hfov_deg / distances_array_length;
-    ROS_INFO("INFO: OBSTACLE_DISTANCE angle_offset: %0.3f", angle_offset);
-    ROS_INFO("INFO: OBSTACLE_DISTANCE increment_f: %0.3f", increment_f);
-    ROS_INFO("INFO: OBSTACLE_DISTANCE coverage: from %0.3f to %0.3f degrees",
+    ROS_INFO("INFO: OBSTACLE_DISTANCE angle_offset: %f", angle_offset);
+    ROS_INFO("INFO: OBSTACLE_DISTANCE increment_f: %f", increment_f);
+    ROS_INFO("INFO: OBSTACLE_DISTANCE coverage: from %f to %f degrees",
         (angle_offset, angle_offset + increment_f * distances_array_length));
 
     min_angle_rad = M_PI * angle_offset / 180;
-    max_angle_rad = M_PI * angle_offset + increment_f * distances_array_length / 180;
+    max_angle_rad = M_PI * (angle_offset + increment_f * distances_array_length) / 180;
 
     // TODO decide if bring back checks or remove
     // # Sanity check for depth configuration
@@ -150,7 +150,6 @@ void Depth_image_to_mavlink::distancesFromDepthImage(const cv::Mat &depth_mat, s
         cv::minMaxLoc( submat, &min_point_in_scan, &maxVal, &minLoc, &maxLoc );
         // double min_point_in_scan = std::min(depth_mat[int(lower_pixel):int(upper_pixel), int(i * step)]);
         float dist_m = min_point_in_scan * depth_scale;
-        ROS_INFO("dep scale %f, min pt %f, final dist %f", depth_scale, min_point_in_scan, dist_m);
 
         // # Note that dist_m is in meter, while distances[] is in cm.
         if (dist_m > min_depth_m and dist_m < max_depth_m) {
@@ -194,7 +193,6 @@ int Depth_image_to_mavlink::findObstacleLineHeight() {
 
 // # https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
 void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances) {
-    ROS_INFO("entered obs dist msg send");
     if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
         // # no new frame
         ROS_WARN("no new frame");
@@ -207,7 +205,8 @@ void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header 
     }
     else {
         sensor_msgs::LaserScan obstacle_msg;
-        obstacle_msg.header = header;
+        obstacle_msg.header.frame_id = "base_link";
+        obstacle_msg.header.stamp = header.stamp;
         obstacle_msg.range_max = max_depth_m / 100;
         obstacle_msg.range_min = min_depth_m / 100;
         obstacle_msg.ranges = distances;
