@@ -17,6 +17,7 @@ Author: Erin Linebarger <erin@robotics88.com>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <tf2_ros/transform_listener.h>
 
 namespace depth_image_to_mavlink {
 /**
@@ -36,6 +37,9 @@ class DepthImageToMavlink {
     private:
         ros::NodeHandle private_nh_;
         ros::NodeHandle nh_;
+
+        tf2_ros::Buffer tf_buffer_;
+        tf2_ros::TransformListener tf_listener_;
 
         std::string depth_topic_;
         std::string depth_info_topic_;
@@ -70,10 +74,12 @@ class DepthImageToMavlink {
         double min_angle_rad;
         double max_angle_rad;
 
+        // Obstacle avoidance pub and sub
         std::string pointcloud_topic_;
         std::string setpoint_goal_topic_;
         ros::Subscriber pointcloud_sub_;
         ros::Subscriber setpoint_goal_sub_;
+        ros::Publisher mavros_pos_setpoint_pub_;
 
         double vehicle_pitch_rad;
         bool vehicle_state_received_;

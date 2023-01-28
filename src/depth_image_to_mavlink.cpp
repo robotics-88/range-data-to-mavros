@@ -13,6 +13,7 @@ namespace depth_image_to_mavlink
 DepthImageToMavlink::DepthImageToMavlink(ros::NodeHandle& node)
   : private_nh_("~")
   , nh_(node)
+  , tf_listener_(tf_buffer_)
   , depth_topic_("zed2i/zed_node/depth/depth_registered")
   , depth_info_topic_("zed2i/zed_node/depth/camera_info")
   , pointcloud_topic_("zed2i/zed_node/point_cloud/cloud_registered")
@@ -39,6 +40,7 @@ DepthImageToMavlink::DepthImageToMavlink(ros::NodeHandle& node)
 
     pointcloud_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic_, 10, &DepthImageToMavlink::pointcloudCallback, this);
     setpoint_goal_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(setpoint_goal_topic_, 10, &DepthImageToMavlink::setpointGoalCallback, this);
+    mavros_pos_setpoint_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 10);
 
     depth_smoothed_publisher_ = nh_.advertise<sensor_msgs::Image>("depth_smoothed", 10);
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>("/mavros/obstacle/send", 10);
