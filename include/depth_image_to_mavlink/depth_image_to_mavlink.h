@@ -9,25 +9,29 @@ Author: Erin Linebarger <erin@robotics88.com>
 #include <ros/ros.h>
 
 #include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/PointCloud2.h>
 
 namespace depth_image_to_mavlink {
 /**
- * @class Depth_image_to_mavlink
+ * @class DepthImageToMavlink
  * @brief Converts depth images to mavlink obstacle messages required for obstacle avoidance.
  */
-class Depth_image_to_mavlink {
+class DepthImageToMavlink {
 
     public:
-        Depth_image_to_mavlink(ros::NodeHandle& node);
-        ~Depth_image_to_mavlink();
+        DepthImageToMavlink(ros::NodeHandle& node);
+        ~DepthImageToMavlink();
 
         void depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info);
+        void pointcloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg);
+        void setpointGoalCallback(const geometry_msgs::PoseStampedConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -65,6 +69,11 @@ class Depth_image_to_mavlink {
         double max_depth_m;
         double min_angle_rad;
         double max_angle_rad;
+
+        std::string pointcloud_topic_;
+        std::string setpoint_goal_topic_;
+        ros::Subscriber pointcloud_sub_;
+        ros::Subscriber setpoint_goal_sub_;
 
         double vehicle_pitch_rad;
         bool vehicle_state_received_;

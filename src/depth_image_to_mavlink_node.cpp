@@ -14,7 +14,7 @@ int main(int argc, char** argv)
   }
 
   ros::NodeHandle node;
-  depth_image_to_mavlink::Depth_image_to_mavlink depth_image_to_mavlink(node);
+  depth_image_to_mavlink::DepthImageToMavlink depth_image_to_mavlink(node);
 
   ros::spin();
 

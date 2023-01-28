@@ -10,11 +10,13 @@ Author: Erin Linebarger <erin@robotics88.com>
 
 namespace depth_image_to_mavlink
 {
-Depth_image_to_mavlink::Depth_image_to_mavlink(ros::NodeHandle& node)
+DepthImageToMavlink::DepthImageToMavlink(ros::NodeHandle& node)
   : private_nh_("~")
   , nh_(node)
   , depth_topic_("zed2i/zed_node/depth/depth_registered")
   , depth_info_topic_("zed2i/zed_node/depth/camera_info")
+  , pointcloud_topic_("zed2i/zed_node/point_cloud/cloud_registered")
+  , setpoint_goal_topic_("explore_goal")
   , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
   , obstacle_params_set_(false)
   , depth_scale(1.0)
@@ -27,19 +29,24 @@ Depth_image_to_mavlink::Depth_image_to_mavlink(ros::NodeHandle& node)
 {   
     private_nh_.param<std::string>("depth_image", depth_topic_, depth_topic_);
     private_nh_.param<std::string>("depth_info", depth_info_topic_, depth_info_topic_);
+    private_nh_.param<std::string>("pointcloud_topic", pointcloud_topic_, pointcloud_topic_);
+    private_nh_.param<std::string>("setpoint_goal_sub", setpoint_goal_topic_, setpoint_goal_topic_);
 
     depth_image_subscriber_.subscribe(nh_, depth_topic_, 10);
     depth_info_subscriber_.subscribe(nh_, depth_info_topic_, 10);
     sync_.reset(new Sync(MySyncPolicy(10), depth_image_subscriber_, depth_info_subscriber_));
-    sync_->registerCallback(boost::bind(&Depth_image_to_mavlink::depthImageCallback, this, _1, _2));
+    sync_->registerCallback(boost::bind(&DepthImageToMavlink::depthImageCallback, this, _1, _2));
+
+    pointcloud_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic_, 10, &DepthImageToMavlink::pointcloudCallback, this);
+    setpoint_goal_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(setpoint_goal_topic_, 10, &DepthImageToMavlink::setpointGoalCallback, this);
 
     depth_smoothed_publisher_ = nh_.advertise<sensor_msgs::Image>("depth_smoothed", 10);
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>("/mavros/obstacle/send", 10);
 }
 
-Depth_image_to_mavlink::~Depth_image_to_mavlink(){}
+DepthImageToMavlink::~DepthImageToMavlink(){}
 
-void Depth_image_to_mavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info) {
+void DepthImageToMavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info) {
     // Get depth image as mat
     cv::Mat depth_mat;
     cv_bridge::CvImagePtr cv_ptr; 
@@ -70,7 +77,7 @@ void Depth_image_to_mavlink::depthImageCallback(const sensor_msgs::ImageConstPtr
     depth_smoothed_publisher_.publish(smoothed_msg.toImageMsg());
 }
 
-void Depth_image_to_mavlink::setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info) {
+void DepthImageToMavlink::setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info) {
     depth_height = info->height;
     depth_width = info->width;
 
@@ -109,7 +116,7 @@ void Depth_image_to_mavlink::setObstacleDistanceParams(const sensor_msgs::Camera
     obstacle_params_set_ = true;
 }
 
-void Depth_image_to_mavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances){
+void DepthImageToMavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances){
     // # Parameters for obstacle distance message
     int step = std::floor(((double) depth_width) / distances_array_length);
 
@@ -167,7 +174,7 @@ void Depth_image_to_mavlink::distancesFromDepthImage(const cv::Mat &depth_mat, s
 // # Find the height of the horizontal line to calculate the obstacle distances
 // #   - Basis: depth camera's vertical FOV, user's input
 // #   - Compensation: vehicle's current pitch angle
-int Depth_image_to_mavlink::findObstacleLineHeight() {
+int DepthImageToMavlink::findObstacleLineHeight() {
     // global vehicle_pitch_rad, depth_vfov_deg, DEPTH_HEIGHT
 
     // # Basic position
@@ -192,7 +199,7 @@ int Depth_image_to_mavlink::findObstacleLineHeight() {
 }
 
 // # https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
-void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances) {
+void DepthImageToMavlink::sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances) {
     if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
         // # no new frame
         ROS_WARN("no new frame");
@@ -234,7 +241,7 @@ void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header 
 }
 
 // # https://mavlink.io/en/messages/common.html#DISTANCE_SENSOR
-// void Depth_image_to_mavlink::sendSingleDistanceSensorMsg(distance, orientation) {
+// void DepthImageToMavlink::sendSingleDistanceSensorMsg(distance, orientation) {
 //     // # Average out a portion of the centermost part
 //     conn.mav.distance_sensor_send(
 //         0,                  # ms Timestamp (UNIX time or time since system boot) (ignored)
@@ -249,7 +256,7 @@ void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header 
 // }
 
 // // # https://mavlink.io/en/messages/common.html#DISTANCE_SENSOR
-// void Depth_image_to_mavlink::send_distance_sensor_message():
+// void DepthImageToMavlink::send_distance_sensor_message():
 //     global distances
 //     # Average out a portion of the centermost part
 //     curr_dist = int(np.mean(distances[33:38]))
@@ -263,5 +270,13 @@ void Depth_image_to_mavlink::sendObstacleDistanceMessage(const std_msgs::Header 
 //         int(camera_facing_angle_degree / 45),              # orientation
 //         0               # covariance : 0 (ignored)
 //     )
+
+void DepthImageToMavlink::pointcloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg) {
+
+}
+
+void DepthImageToMavlink::setpointGoalCallback(const geometry_msgs::PoseStampedConstPtr &msg) {
+
+}
 
 }
