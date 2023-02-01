@@ -24,7 +24,7 @@ DepthImageToMavlink::DepthImageToMavlink(ros::NodeHandle& node)
   , obstacle_line_height_ratio(0.18)
   , obstacle_line_thickness_pixel(10)
   , distances_array_length(72)
-  , min_depth_m(0.2)
+  , min_depth_m(0.25)
   , max_depth_m(10.0)
   , vehicle_state_received_(false)
 {   
@@ -162,7 +162,7 @@ void DepthImageToMavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std:
 
         // # Note that dist_m is in meter, while distances[] is in cm.
         if (dist_m > min_depth_m and dist_m < max_depth_m) {
-            distances.push_back(dist_m * 100);
+            distances.push_back(dist_m);
         }
         else {
             // # Default value, unless overwritten: 
@@ -216,10 +216,10 @@ void DepthImageToMavlink::sendObstacleDistanceMessage(const std_msgs::Header &he
         sensor_msgs::LaserScan obstacle_msg;
         obstacle_msg.header.frame_id = "base_link";
         obstacle_msg.header.stamp = header.stamp;
-        obstacle_msg.range_max = max_depth_m / 100;
-        obstacle_msg.range_min = min_depth_m / 100;
+        obstacle_msg.range_max = max_depth_m;
+        obstacle_msg.range_min = min_depth_m;
         obstacle_msg.ranges = distances;
-        obstacle_msg.angle_increment = increment_f;
+        obstacle_msg.angle_increment = increment_f * M_PI / 180;
         obstacle_msg.time_increment = 0;
         obstacle_msg.scan_time = 0;
         obstacle_msg.angle_max = max_angle_rad;
