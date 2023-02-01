@@ -61,6 +61,7 @@ void DepthImageToMavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &m
 
     std::vector<float> distances;
     distancesFromDepthImage(depth_mat, distances);
+    std::reverse(distances.begin(),distances.end()); // LaserScan is CCW if z-axis upward
 
     sendObstacleDistanceMessage(msg->header, distances);
 
