@@ -59,24 +59,26 @@ void DepthImageToMavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &m
         setObstacleDistanceParams(info);
     }
 
+    // Clean depth image - note for compatibility with Nano/OpenCV3.2, must convert from 32F to 8UC1
+    cv::Mat depth_smoothed = depth_mat.clone();
+    depth_smoothed = depth_smoothed * 255;
+    depth_smoothed.convertTo(depth_smoothed, CV_8UC1);
+    cv::Mat inpaintMask = depth_mat.clone();
+    cv::patchNaNs(inpaintMask, -1.0);
+    inpaintMask = (inpaintMask == -1.0);
+    inpaintMask.convertTo(inpaintMask, CV_8UC1);
+    cv::inpaint(depth_smoothed, inpaintMask, depth_smoothed, 3, cv::INPAINT_NS);
+
     std::vector<float> distances;
-    distancesFromDepthImage(depth_mat, distances);
+    distancesFromDepthImage(depth_smoothed, distances);
     std::reverse(distances.begin(),distances.end()); // LaserScan is CCW if z-axis upward
 
     sendObstacleDistanceMessage(msg->header, distances);
 
-    // Clean depth image
-    cv::Mat depth_smoothed = cv::Mat::zeros(depth_mat.size(), CV_32FC1);
-    cv::Mat inpaintMask = depth_mat.clone();// = cv::Mat::zeros(depth_mat.size(), CV_8UC1);
-    cv::patchNaNs(inpaintMask, -1.0);
-    inpaintMask = (inpaintMask == -1.0);
-    inpaintMask.convertTo(inpaintMask, CV_8UC1);
-    cv::inpaint(depth_mat, inpaintMask, depth_smoothed, 3, cv::INPAINT_NS);
-
     // Republish smoothed depth
     cv_bridge::CvImage smoothed_msg;
     smoothed_msg.header   = msg->header; // Same timestamp and tf frame as input image
-    smoothed_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
+    smoothed_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC1;
     smoothed_msg.image    = depth_smoothed;
     depth_smoothed_publisher_.publish(smoothed_msg.toImageMsg());
 }
