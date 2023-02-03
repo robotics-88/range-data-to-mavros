@@ -15,5 +15,9 @@
         <param name="setpoint_goal_sub" value="$(arg setpoint_goal_sub)"/>
     </node>
 
-    <node type="rviz" name="depth_rviz" pkg="rviz" args="-d $(find depth_image_to_mavlink)/config/depth_smoothed.rviz" />
+    <arg name="use_rviz" default="false"/>
+
+    <group if="$(arg use_rviz)">
+        <node type="rviz" name="depth_rviz" pkg="rviz" args="-d $(find depth_image_to_mavlink)/config/depth_smoothed.rviz" />
+    </group>
 </launch>
