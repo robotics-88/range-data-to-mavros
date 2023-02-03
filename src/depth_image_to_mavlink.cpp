@@ -66,10 +66,11 @@ void DepthImageToMavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &m
     sendObstacleDistanceMessage(msg->header, distances);
 
     // Clean depth image
-    cv::Mat depth_smoothed, inpaintMask;
-    inpaintMask = depth_mat.clone();
+    cv::Mat depth_smoothed = cv::Mat::zeros(depth_mat.size(), CV_32FC1);
+    cv::Mat inpaintMask = depth_mat.clone();// = cv::Mat::zeros(depth_mat.size(), CV_8UC1);
     cv::patchNaNs(inpaintMask, -1.0);
     inpaintMask = (inpaintMask == -1.0);
+    inpaintMask.convertTo(inpaintMask, CV_8UC1);
     cv::inpaint(depth_mat, inpaintMask, depth_smoothed, 3, cv::INPAINT_NS);
 
     // Republish smoothed depth
