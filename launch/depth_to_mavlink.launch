@@ -2,17 +2,12 @@
     <arg name="depth_image" default="zed2i/zed_node/depth/depth_registered"/>
     <arg name="depth_info" default="zed2i/zed_node/depth/camera_info"/>
 
-    <!-- <arg name="depth_image" default="/airsim_ros_node/Copter/front_left_custom/DepthPlanar"/>
-    <arg name="depth_info" default="/airsim_ros_node/Copter/front_left_custom/DepthPlanar/camera_info"/> -->
-    <arg name="pointcloud_topic" default="/airsim_ros_node/Copter/lidar/Lidar1"/>
-
-    <arg name="setpoint_goal_sub" default="/explore_goal"/>
+    <arg name="mavros_obstacle_topic" default="/mavros/obstacle/send"/>
 
     <node pkg="depth_image_to_mavlink" type="depth_image_to_mavlink_node" respawn="false" name="depth_image_to_mavlink" output="screen">
         <param name="depth_image" value="$(arg depth_image)"/>
         <param name="depth_info" value="$(arg depth_info)"/>
-        <param name="pointcloud_topic" value="$(arg pointcloud_topic)"/>
-        <param name="setpoint_goal_sub" value="$(arg setpoint_goal_sub)"/>
+        <param name="mavros_obstacle_topic" value="$(arg mavros_obstacle_topic)"/>
     </node>
 
     <arg name="use_rviz" default="false"/>

@@ -31,8 +31,6 @@ class DepthImageToMavlink {
         ~DepthImageToMavlink();
 
         void depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info);
-        void pointcloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg);
-        void setpointGoalCallback(const geometry_msgs::PoseStampedConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -45,8 +43,6 @@ class DepthImageToMavlink {
         std::string depth_info_topic_;
         message_filters::Subscriber<sensor_msgs::Image> depth_image_subscriber_;
         message_filters::Subscriber<sensor_msgs::CameraInfo> depth_info_subscriber_;
-
-        ros::Publisher depth_smoothed_publisher_;
 
         typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::CameraInfo> MySyncPolicy;
         typedef message_filters::Synchronizer<MySyncPolicy> Sync;
@@ -73,13 +69,6 @@ class DepthImageToMavlink {
         double max_depth_m;
         double min_angle_rad;
         double max_angle_rad;
-
-        // Obstacle avoidance pub and sub
-        std::string pointcloud_topic_;
-        std::string setpoint_goal_topic_;
-        ros::Subscriber pointcloud_sub_;
-        ros::Subscriber setpoint_goal_sub_;
-        ros::Publisher mavros_pos_setpoint_pub_;
 
         double vehicle_pitch_rad;
         bool vehicle_state_received_;
