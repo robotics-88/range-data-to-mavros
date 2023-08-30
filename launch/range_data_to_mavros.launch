@@ -1,0 +1,25 @@
+<launch>
+
+    <!-- range data type i.e. depth_image or point_cloud -->
+    <arg name="data_type" default="depth_image"/> 
+
+    <!-- topic names -->
+    <arg name="depth_image_topic" default="zed2i/zed_node/depth/depth_registered"/>
+    <arg name="depth_info_topic" default="zed2i/zed_node/depth/camera_info"/>
+    <arg name="point_cloud_topic" default="/velodyne_points"/>
+    <arg name="mavros_obstacle_topic" default="/mavros/obstacle/send"/>
+
+    <node pkg="range_data_to_mavros" type="range_data_to_mavros_node" respawn="false" name="range_data_to_mavros" output="screen">
+        <param name="data_type" type="string" value="$(arg data_type)"/> 
+        <param name="depth_image_topic" value="$(arg depth_image_topic)"/>
+        <param name="depth_info_topic" value="$(arg depth_info_topic)"/>
+        <param name="point_cloud_topic" value="$(arg point_cloud_topic)"/>
+        <param name="mavros_obstacle_topic" value="$(arg mavros_obstacle_topic)"/>
+    </node>
+
+    <arg name="use_rviz" default="false"/>
+
+    <group if="$(arg use_rviz)">
+        <node type="rviz" name="depth_rviz" pkg="rviz" args="-d $(find range_data_to_mavros)/config/depth_smoothed.rviz" />
+    </group>
+</launch>

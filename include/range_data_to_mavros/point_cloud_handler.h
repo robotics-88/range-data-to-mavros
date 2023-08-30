@@ -1,10 +1,10 @@
 /* 
 © 2023 Robotics 88
-Author: Erin Linebarger <erin@robotics88.com> 
+Author: Gus Meyer <gus@robotics88.com> 
 */
 
-#ifndef DEPTH_IMAGE_TO_MAVLINK_H_
-#define DEPTH_IMAGE_TO_MAVLINK_H_
+#ifndef POINT_CLOUD_HANDLER_H_
+#define POINT_CLOUD_HANDLER_H_
 
 #include <ros/ros.h>
 
@@ -13,24 +13,20 @@ Author: Erin Linebarger <erin@robotics88.com>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/time_synchronizer.h>
-#include <sensor_msgs/CameraInfo.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_listener.h>
 
-namespace depth_image_to_mavlink {
 /**
- * @class DepthImageToMavlink
- * @brief Converts depth images to mavlink obstacle messages required for obstacle avoidance.
+ * @class PointCloudHandler
+ * @brief Converts point cloud (e.g. 3D Lidar) data to mavros obstacle messages required for obstacle avoidance.
  */
-class DepthImageToMavlink {
+class PointCloudHandler {
 
     public:
-        DepthImageToMavlink(ros::NodeHandle& node);
-        ~DepthImageToMavlink();
+        PointCloudHandler(ros::NodeHandle& node);
+        ~PointCloudHandler();
 
-        void depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info);
+        void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -39,14 +35,13 @@ class DepthImageToMavlink {
         tf2_ros::Buffer tf_buffer_;
         tf2_ros::TransformListener tf_listener_;
 
-        std::string depth_topic_;
-        std::string depth_info_topic_;
-        message_filters::Subscriber<sensor_msgs::Image> depth_image_subscriber_;
-        message_filters::Subscriber<sensor_msgs::CameraInfo> depth_info_subscriber_;
+        std::string point_cloud_topic_;
+        std::string mavros_obstacle_topic_;
+        message_filters::Subscriber<sensor_msgs::PointCloud2> point_cloud_subscriber_;
 
-        typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::CameraInfo> MySyncPolicy;
+        /* typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::CameraInfo> MySyncPolicy;
         typedef message_filters::Synchronizer<MySyncPolicy> Sync;
-        boost::shared_ptr<Sync> sync_;
+        boost::shared_ptr<Sync> sync_; */
 
         std::vector<float> latest_distances_;
         double last_obstacle_distance_sent_ms;
@@ -74,11 +69,9 @@ class DepthImageToMavlink {
         bool vehicle_state_received_;
 
         void setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info);
-        void distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances);
+        void distancesFromPointCloud(const sensor_msgs::PointCloud2 &point_cloud, std::vector<float> &distances);
         int findObstacleLineHeight();
         void sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances);
 };
-
-}
 
 #endif

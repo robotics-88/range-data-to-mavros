@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>depth_image_to_mavlink</name>
+  <name>range_data_to_mavros</name>
   <version>1.0.0</version>
   <license>commercial</license>
 
-  <description>Converts depth images to mavlink obstacle distance and distance sensor messages.</description>
+  <description>Converts range data i.e. point cloud or lidar data to mavros obstacle distance messages.</description>
 
   <author email="erin@robotics88.com">Erin Linebarger</author>
   <maintainer email="erin@robotics88.com">Erin Linebarger</maintainer>

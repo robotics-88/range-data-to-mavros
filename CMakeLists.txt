@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(depth_image_to_mavlink)
+project(range_data_to_mavros)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
@@ -53,16 +53,17 @@ include_directories(
 )
 
 # Depth img conversion pkgs
-add_executable(depth_image_to_mavlink_node
-  src/depth_image_to_mavlink_node.cpp
+add_executable(range_data_to_mavros_node
+  src/range_data_to_mavros_node.cpp
 )
-add_library(depth_image_to_mavlink 
-  src/depth_image_to_mavlink.cpp
+add_library(range_data_to_mavros
+  src/depth_image_handler.cpp
+  # src/point_cloud_handler.cpp
 )
-add_dependencies(depth_image_to_mavlink ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(range_data_to_mavros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-target_link_libraries(depth_image_to_mavlink_node 
-  depth_image_to_mavlink
+target_link_libraries(range_data_to_mavros_node 
+  range_data_to_mavros
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
@@ -72,7 +73,7 @@ target_link_libraries(depth_image_to_mavlink_node
 #############
 
 # install nodes
-install(TARGETS depth_image_to_mavlink
+install(TARGETS range_data_to_mavros
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
