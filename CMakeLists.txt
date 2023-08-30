@@ -58,7 +58,7 @@ add_executable(range_data_to_mavros_node
 )
 add_library(range_data_to_mavros
   src/depth_image_handler.cpp
-  # src/point_cloud_handler.cpp
+  src/point_cloud_handler.cpp
 )
 add_dependencies(range_data_to_mavros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 

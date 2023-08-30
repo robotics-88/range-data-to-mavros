@@ -10,11 +10,10 @@ Author: Gus Meyer <gus@robotics88.com>
 
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/sync_policies/exact_time.h>
-#include <message_filters/time_synchronizer.h>
+#include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_listener.h>
+
 
 /**
  * @class PointCloudHandler
@@ -26,7 +25,9 @@ class PointCloudHandler {
         PointCloudHandler(ros::NodeHandle& node);
         ~PointCloudHandler();
 
-        void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &msg);
+        int testnum;
+
+        void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -37,7 +38,7 @@ class PointCloudHandler {
 
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;
-        message_filters::Subscriber<sensor_msgs::PointCloud2> point_cloud_subscriber_;
+        ros::Subscriber point_cloud_subscriber_;
 
         /* typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::CameraInfo> MySyncPolicy;
         typedef message_filters::Synchronizer<MySyncPolicy> Sync;
@@ -68,10 +69,10 @@ class PointCloudHandler {
         double vehicle_pitch_rad;
         bool vehicle_state_received_;
 
-        void setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info);
+        void setObstacleDistanceParams(const sensor_msgs::PointCloud2 &msg);
         void distancesFromPointCloud(const sensor_msgs::PointCloud2 &point_cloud, std::vector<float> &distances);
         int findObstacleLineHeight();
-        void sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances);
+        void publishObstacleDistances(const std_msgs::Header &header, const std::vector<float> &distances);
 };
 
 #endif

@@ -24,13 +24,14 @@ int main(int argc, char** argv)
 
   if (data_type == "point_cloud") {
     ROS_INFO("Running point cloud handler");
+    PointCloudHandler point_cloud_handler(node);
+    ros::spin();
   }
   else {
     ROS_INFO("Running depth image handler");
     DepthImageHandler depth_image_handler(node);
+    ros::spin();
   }
-
-  ros::spin();
 
   return 0;
 }

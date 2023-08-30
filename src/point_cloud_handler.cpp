@@ -26,47 +26,48 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     private_nh_.param<std::string>("point_cloud_topic", point_cloud_topic_, point_cloud_topic_);
     private_nh_.param<std::string>("mavros_obstacle_topic", mavros_obstacle_topic_, mavros_obstacle_topic_);
 
-    point_cloud_subscriber_.subscribe(nh_, depth_topic_, 10);
-    depth_info_subscriber_.subscribe(nh_, depth_info_topic_, 10);
-    sync_.reset(new Sync(MySyncPolicy(10), point_cloud_subscriber_, depth_info_subscriber_));
-    sync_->registerCallback(boost::bind(&PointCloudHandler::pointCloudCallback, this, _1, _2));
+    point_cloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(point_cloud_topic_, 10, &PointCloudHandler::pointCloudCallback, this);
 
-    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(obstacle_topic, 10);
+    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
+
+    testnum = 10;
 }
 
 PointCloudHandler::~PointCloudHandler(){}
 
-void PointCloudHandler::pointCloudCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info) {
+void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
+
+    std::cout << "Getting point cloud" << std::endl;
     // Get depth image as mat
-    cv::Mat depth_mat;
+    /* cv::Mat depth_mat;
     cv_bridge::CvImagePtr cv_ptr; 
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_32FC1); 
     depth_mat = cv_ptr->image;
-
-    if (!obstacle_params_set_) {
-        setObstacleDistanceParams(info);
-    }
 
     std::vector<float> distances;
     distancesFromPointCloud(depth_mat, distances);
     std::reverse(distances.begin(),distances.end()); // LaserScan is CCW if z-axis upward
 
-    publishObstacleDistances(msg->header, distances);
+    publishObstacleDistances(msg->header, distances); */
 }
 
-void PointCloudHandler::setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info) {
-    depth_height = info->height;
-    depth_width = info->width;
+void PointCloudHandler::setObstacleDistanceParams(const sensor_msgs::PointCloud2 &msg) {
+    depth_height = 10;
+    depth_width = 10;
 
     // # For forward facing camera with a horizontal wide view:
     // #   HFOV=2*atan[w/(2.fx)],
     // #   VFOV=2*atan[h/(2.fy)],
     // #   DFOV=2*atan(Diag/2*f),
     // #   Diag=sqrt(w^2 + h^2)
-    double fx = info->P[0];
-    double fy = info->P[5];
-    depth_hfov_deg = 180 * (2 * atan(info->width / (2 * fx))) / M_PI;
-    depth_vfov_deg = 180 * (2 * atan(info->height / (2 * fy))) / M_PI;
+
+    
+    double fx = 10;
+    double fy = 10;
+    depth_hfov_deg = 180 * (2 * atan(10 / (2 * fx))) / M_PI;
+    depth_vfov_deg = 180 * (2 * atan(10 / (2 * fy))) / M_PI;
+
+
     ROS_INFO("INFO: Depth camera HFOV: %0.2f degrees", depth_hfov_deg);
     ROS_INFO("INFO: Depth camera VFOV: %0.2f degrees", depth_vfov_deg);
 
@@ -93,7 +94,7 @@ void PointCloudHandler::setObstacleDistanceParams(const sensor_msgs::CameraInfoC
     obstacle_params_set_ = true;
 }
 
-void PointCloudHandler::distancesFromPointCloud(const cv::Mat &depth_mat, std::vector<float> &distances){
+void PointCloudHandler::distancesFromPointCloud(const sensor_msgs::PointCloud2 &point_cloud, std::vector<float> &distances){
     // # Parameters for obstacle distance message
     int step = std::floor(((double) depth_width) / distances_array_length);
 
@@ -123,17 +124,7 @@ void PointCloudHandler::distancesFromPointCloud(const cv::Mat &depth_mat, std::v
             lower_pixel = 0;
         }
 
-        // # Converting depth from uint16_t unit to metric unit. depth_scale is usually 1mm following ROS convention.
-        // # dist_m = depth_mat[int(obstacle_line_height), int(i * step)] * depth_scale
-        cv::Mat submat = depth_mat.col(i * step).clone();
-        submat = submat.rowRange(lower_pixel, upper_pixel);
-        double min_point_in_scan; 
-        double maxVal; 
-        cv::Point minLoc; 
-        cv::Point maxLoc;
-        cv::minMaxLoc( submat, &min_point_in_scan, &maxVal, &minLoc, &maxLoc );
-        // double min_point_in_scan = std::min(depth_mat[int(lower_pixel):int(upper_pixel), int(i * step)]);
-        float dist_m = min_point_in_scan * depth_scale;
+        float dist_m = 0;
 
         // # Note that dist_m is in meter, while distances[] is in cm.
         if (dist_m > min_depth_m and dist_m < max_depth_m) {
