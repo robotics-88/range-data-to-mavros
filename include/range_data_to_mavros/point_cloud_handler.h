@@ -12,9 +12,8 @@ Author: Gus Meyer <gus@robotics88.com>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <tf2_ros/transform_listener.h>
-
-
+#include <sensor_msgs/point_cloud2_iterator.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 /**
  * @class PointCloudHandler
@@ -27,45 +26,36 @@ class PointCloudHandler {
         ~PointCloudHandler();
 
         void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
+        void dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
         ros::NodeHandle nh_;
 
-        tf2_ros::Buffer tf_buffer_;
-        tf2_ros::TransformListener tf_listener_;
-
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;
         ros::Subscriber point_cloud_subscriber_;
-
-        /* typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::CameraInfo> MySyncPolicy;
-        typedef message_filters::Synchronizer<MySyncPolicy> Sync;
-        boost::shared_ptr<Sync> sync_; */
 
         std::vector<float> latest_distances_;
         double last_obstacle_distance_sent_ms;
         ros::Publisher mavros_obstacle_publisher_;
 
-        // Obstacle params based on librealsense example
-        bool obstacle_params_set_;
-        int depth_height;
-        int depth_width;
-        double angle_offset;
-        double camera_facing_angle_degree = 0; // appears to be always 0 - verify later, but makes sense if this param is the rotation of camera, expect always facing forward
-        double increment_f;
-        double depth_scale;
-        double depth_hfov_deg;
-        double depth_vfov_deg;
-        double obstacle_line_height_ratio; // [0-1]: 0-Top, 1-Bottom. The height of the horizontal line to find distance to obstacle.
-        int obstacle_line_thickness_pixel; // [1-DEPTH_HEIGHT]: Number of pixel rows to use to generate the obstacle distance message. For each column, the scan will return the minimum value for those pixels centered vertically in the image.
-        int distances_array_length;
-        double min_depth_m;
-        double max_depth_m;
-        double min_angle_rad;
-        double max_angle_rad;
+        geometry_msgs::PoseStamped last_pose_;
 
-        double vehicle_pitch_rad;
+        // Params
+        std::string target_frame_;
+        double distances_array_length_;
+        double min_height_;
+        double max_height_;
+        double angle_min_;
+        double angle_max_;
+        double angle_increment_;
+        double scan_time_;
+        double range_min_;
+        double range_max_;
+        double inf_epsilon_;
+        double use_inf_;
+
         bool vehicle_state_received_;
 
         void setObstacleDistanceParams(const sensor_msgs::PointCloud2 &msg);

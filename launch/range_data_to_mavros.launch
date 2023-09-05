@@ -9,12 +9,28 @@
     <arg name="point_cloud_topic" default="/velodyne_points"/>
     <arg name="mavros_obstacle_topic" default="/mavros/obstacle/send"/>
 
+    <!-- params -->
+    <arg name="min_height" default="-1.0"/>
+    <arg name="max_height" default="1.0"/>
+    <arg name="angle_min" default="-3.14159"/>
+    <arg name="angle_max" default="3.14159"/>
+    <arg name="range_min" default="0.0"/>
+    <arg name="range_max" default="20.0"/>
+
     <node pkg="range_data_to_mavros" type="range_data_to_mavros_node" respawn="false" name="range_data_to_mavros" output="screen">
         <param name="data_type" type="string" value="$(arg data_type)"/> 
         <param name="depth_image_topic" value="$(arg depth_image_topic)"/>
         <param name="depth_info_topic" value="$(arg depth_info_topic)"/>
         <param name="point_cloud_topic" value="$(arg point_cloud_topic)"/>
         <param name="mavros_obstacle_topic" value="$(arg mavros_obstacle_topic)"/>
+
+        <param name="min_height" value="$(arg min_height)"/>
+        <param name="max_height" value="$(arg max_height)"/>
+        <param name="angle_min" value="$(arg angle_min)"/>
+        <param name="angle_max" value="$(arg angle_max)"/>
+        <param name="range_min" value="$(arg range_min)"/>
+        <param name="range_max" value="$(arg range_max)"/>
+        
     </node>
 
     <arg name="use_rviz" default="false"/>

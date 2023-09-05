@@ -14,8 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_msgs
   tf2_ros
   tf2_geometry_msgs
-  pcl_conversions
-  pcl_ros
 )
 
 find_package(OpenCV REQUIRED)
@@ -33,8 +31,6 @@ catkin_package(
     tf2_msgs
     tf2_ros
     tf2_geometry_msgs
-    pcl_conversions
-    pcl_ros
 )
 
 ###########

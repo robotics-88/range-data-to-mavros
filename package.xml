@@ -23,16 +23,6 @@
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>
   
-  <build_depend>pcl_conversions</build_depend>
-  <build_depend>pcl_ros</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_export_depend>pcl_conversions</build_export_depend>
-  <build_export_depend>pcl_ros</build_export_depend>
-  <build_export_depend>sensor_msgs</build_export_depend>
-  <exec_depend>pcl_conversions</exec_depend>
-  <exec_depend>pcl_ros</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  
 
   <test_depend>roslaunch</test_depend>
 </package>
