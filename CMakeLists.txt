@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(range_data_to_mavros)
 
 ## Find catkin macros and libraries
@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_msgs
   tf2_ros
   tf2_geometry_msgs
+  pcl_conversions
+  pcl_ros
 )
 
 find_package(OpenCV REQUIRED)
@@ -31,19 +33,24 @@ catkin_package(
     tf2_msgs
     tf2_ros
     tf2_geometry_msgs
+    pcl_conversions
+    pcl_ros
 )
 
 ###########
 ## Build ##
 ###########
+
+# Commented out because this seems to mess up the pointcloud library
+
 # c++11 support required
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX11)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-endif()
+# include(CheckCXXCompilerFlag)
+# check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
+# if(COMPILER_SUPPORTS_CXX11)
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+# else()
+#   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+# endif()
 
 ## Specify additional locations of header files
 include_directories(

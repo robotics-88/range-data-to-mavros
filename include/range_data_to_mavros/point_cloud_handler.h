@@ -15,6 +15,7 @@ Author: Gus Meyer <gus@robotics88.com>
 #include <tf2_ros/transform_listener.h>
 
 
+
 /**
  * @class PointCloudHandler
  * @brief Converts point cloud (e.g. 3D Lidar) data to mavros obstacle messages required for obstacle avoidance.
@@ -24,8 +25,6 @@ class PointCloudHandler {
     public:
         PointCloudHandler(ros::NodeHandle& node);
         ~PointCloudHandler();
-
-        int testnum;
 
         void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
 

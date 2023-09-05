@@ -5,6 +5,11 @@ Author: Gus Meyer <gus@robotics88.com>
 
 #include "range_data_to_mavros/point_cloud_handler.h"
 
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 #include <math.h>
 
 PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
@@ -29,8 +34,6 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     point_cloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(point_cloud_topic_, 10, &PointCloudHandler::pointCloudCallback, this);
 
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
-
-    testnum = 10;
 }
 
 PointCloudHandler::~PointCloudHandler(){}
@@ -38,132 +41,41 @@ PointCloudHandler::~PointCloudHandler(){}
 void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
 
     std::cout << "Getting point cloud" << std::endl;
-    // Get depth image as mat
-    /* cv::Mat depth_mat;
-    cv_bridge::CvImagePtr cv_ptr; 
-    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_32FC1); 
-    depth_mat = cv_ptr->image;
 
-    std::vector<float> distances;
-    distancesFromPointCloud(depth_mat, distances);
-    std::reverse(distances.begin(),distances.end()); // LaserScan is CCW if z-axis upward
+    // Convert to pcl::PointCloud
+    pcl::PointCloud<pcl::PointXYZ> point_cloud;
+    pcl::fromROSMsg(*msg, point_cloud);
 
-    publishObstacleDistances(msg->header, distances); */
-}
-
-void PointCloudHandler::setObstacleDistanceParams(const sensor_msgs::PointCloud2 &msg) {
-    depth_height = 10;
-    depth_width = 10;
-
-    // # For forward facing camera with a horizontal wide view:
-    // #   HFOV=2*atan[w/(2.fx)],
-    // #   VFOV=2*atan[h/(2.fy)],
-    // #   DFOV=2*atan(Diag/2*f),
-    // #   Diag=sqrt(w^2 + h^2)
+    // point_cloud.points contains xyz data of points.
 
     
-    double fx = 10;
-    double fy = 10;
-    depth_hfov_deg = 180 * (2 * atan(10 / (2 * fx))) / M_PI;
-    depth_vfov_deg = 180 * (2 * atan(10 / (2 * fy))) / M_PI;
 
+}
 
-    ROS_INFO("INFO: Depth camera HFOV: %0.2f degrees", depth_hfov_deg);
-    ROS_INFO("INFO: Depth camera VFOV: %0.2f degrees", depth_vfov_deg);
-
-    angle_offset = camera_facing_angle_degree - (depth_hfov_deg / 2);
-    increment_f = depth_hfov_deg / distances_array_length;
-    ROS_INFO("INFO: OBSTACLE_DISTANCE angle_offset: %f", angle_offset);
-    ROS_INFO("INFO: OBSTACLE_DISTANCE increment_f: %f", increment_f);
-    ROS_INFO("INFO: OBSTACLE_DISTANCE coverage: from %f to %f degrees",
-        (angle_offset, angle_offset + increment_f * distances_array_length));
-
-    min_angle_rad = M_PI * angle_offset / 180;
-    max_angle_rad = M_PI * (angle_offset + increment_f * distances_array_length) / 180;
-
-    // TODO decide if bring back checks or remove
-    // # Sanity check for depth configuration
-    // if obstacle_line_height_ratio < 0 or obstacle_line_height_ratio > 1:
-    //     progress("Please make sure the horizontal position is within [0-1]: %s"  % obstacle_line_height_ratio)
-    //     sys.exit()
-
-    // if obstacle_line_thickness_pixel < 1 or obstacle_line_thickness_pixel > DEPTH_HEIGHT:
-    //     progress("Please make sure the thickness is within [0-DEPTH_HEIGHT]: %s" % obstacle_line_thickness_pixel)
-    //     sys.exit()
+// TODO 
+void PointCloudHandler::setObstacleDistanceParams(const sensor_msgs::PointCloud2 &msg) {
 
     obstacle_params_set_ = true;
 }
 
 void PointCloudHandler::distancesFromPointCloud(const sensor_msgs::PointCloud2 &point_cloud, std::vector<float> &distances){
-    // # Parameters for obstacle distance message
-    int step = std::floor(((double) depth_width) / distances_array_length);
 
-    for (int i = 0; i <distances_array_length; i++) {
-        // # Each range (left to right) is found from a set of rows within a column
-        // #  [ ] -> ignored
-        // #  [x] -> center + obstacle_line_thickness_pixel / 2
-        // #  [x] -> center = obstacle_line_height (moving up and down according to the vehicle's pitch angle)
-        // #  [x] -> center - obstacle_line_thickness_pixel / 2
-        // #  [ ] -> ignored
-        // #   ^ One of [distances_array_length] number of columns, from left to right in the image
-        int center_pixel = findObstacleLineHeight();
-        int upper_pixel = center_pixel + obstacle_line_thickness_pixel / 2;
-        int lower_pixel = center_pixel - obstacle_line_thickness_pixel / 2;
 
-        // # Sanity checks
-        if (upper_pixel > depth_height) {
-            upper_pixel = depth_height;
-        }
-        else if (upper_pixel < 1) {
-            upper_pixel = 1;
-        }
-        if (lower_pixel > depth_height) {
-            lower_pixel = depth_height - 1;
-        }
-        else if (lower_pixel < 0) {
-            lower_pixel = 0;
-        }
 
-        float dist_m = 0;
 
-        // # Note that dist_m is in meter, while distances[] is in cm.
-        if (dist_m > min_depth_m and dist_m < max_depth_m) {
-            distances.push_back(dist_m);
-        }
-        else {
-            // # Default value, unless overwritten: 
-            // #   A value of max_distance + 1 (cm) means no obstacle is present. 
-            // #   A value of UINT16_MAX (65535) for unknown/not used.
-            distances.push_back(65535);
-        }
+    float dist_m = 0;
+
+    // # Note that dist_m is in meter, while distances[] is in cm.
+    if (dist_m > min_depth_m and dist_m < max_depth_m) {
+        distances.push_back(dist_m);
     }
-}
-
-// # Find the height of the horizontal line to calculate the obstacle distances
-// #   - Basis: depth camera's vertical FOV, user's input
-// #   - Compensation: vehicle's current pitch angle
-int PointCloudHandler::findObstacleLineHeight() {
-    // global vehicle_pitch_rad, depth_vfov_deg, DEPTH_HEIGHT
-
-    // # Basic position
-    int obstacle_line_height = depth_height * obstacle_line_height_ratio;
-
-    // # Compensate for the vehicle's pitch angle if data is available
-    if (vehicle_state_received_) {
-        double depth_vfov_rad = M_PI * depth_vfov_deg / 180;
-        double delta_height = sin(vehicle_pitch_rad / 2) / sin(depth_vfov_rad / 2) * depth_height;
-        obstacle_line_height += delta_height;
+    else {
+        // # Default value, unless overwritten: 
+        // #   A value of max_distance + 1 (cm) means no obstacle is present. 
+        // #   A value of UINT16_MAX (65535) for unknown/not used.
+        distances.push_back(65535);
     }
 
-    // # Sanity check
-    if (obstacle_line_height < 0) {
-        obstacle_line_height = 0;
-    }
-    else if (obstacle_line_height > depth_height) {
-        obstacle_line_height = depth_height;
-    }
-    
-    return obstacle_line_height;
 }
 
 // Mavlink Message:
