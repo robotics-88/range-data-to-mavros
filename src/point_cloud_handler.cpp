@@ -111,15 +111,6 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     }
 
     mavros_obstacle_publisher_.publish(*scan_msg);
-
-
-    // TESTING
-    // tf2::Vector3 point(5.0, 0.0, 0.0);
-    // tf2::Quaternion q;
-    // q.setRPY(0.0, -0.64, 0.0);
-    // tf2::Vector3 rotated_point = tf2::quatRotate(q, point);
-    // std::cout << "Rotated point: " << rotated_point.getX() << ", " << rotated_point.getY() << ", " << rotated_point.getZ() << std::endl;
-
 }
 
 void PointCloudHandler::dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
