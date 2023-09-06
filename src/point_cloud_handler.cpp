@@ -16,8 +16,8 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     , distances_array_length_(72)
     , min_height_(std::numeric_limits<double>::min())
     , max_height_(std::numeric_limits<double>::max())
-    , angle_min_(-M_PI)
-    , angle_max_(M_PI)
+    , angle_min_(0)
+    , angle_max_(2.0*M_PI)
     , range_min_(0.0)
     , range_max_(std::numeric_limits<double>::max())
     , vehicle_state_received_(false)
@@ -42,8 +42,6 @@ PointCloudHandler::~PointCloudHandler(){}
 
 // Adapted from https://github.com/ros-perception/pointcloud_to_laserscan/blob/indigo-devel/src/pointcloud_to_laserscan_node.cpp
 void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg) {
-
-    std::cout << "Getting point cloud" << std::endl;
 
     // Build laserscan output
     auto scan_msg = std::make_unique<sensor_msgs::LaserScan>();
@@ -77,24 +75,28 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
         tf2::fromMsg(last_pose_.pose.orientation, q);
         tf2::Vector3 rotated_point = tf2::quatRotate(q, point);
 
-        // Filter out points we don't care about
+        // Y axis swap from FLU to FRD, since mavros wants FRD. 
+        // Sort of hacky, might be better to do with real ROS transforms using the base_link_frd frame
+        point.setY(-point.getY());
+
+        // Filter out points outside height range relative to drone
         if (point.getZ() > max_height_ || point.getZ() < min_height_) {
-            // ROS_DEBUG("rejected for height %f not in range (%f, %f)\n", *iter_z, min_height_, max_height_);
+            // ROS_DEBUG("rejected for height %f not in range (%f, %f)\n", point.getZ(), min_height_, max_height_);
             continue;
         }
 
-        double range = hypot(*iter_x, *iter_y);
+        double range = hypot(point.getX(), point.getY());
         if (range < range_min_) {
-            //ROS_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, *iter_x, *iter_y, *iter_z);
+            //ROS_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, point.getX(), point.getY(), point.getZ());
             continue;
         }
 
         if (range > range_max_) {
-            //ROS_DEBUG("rejected for range %f above maximum value %f. Point: (%f, %f, %f)", range, range_max_, *iter_x, *iter_y, *iter_z);
+            //ROS_DEBUG("rejected for range %f above maximum value %f. Point: (%f, %f, %f)", range, range_max_, point.getX(), point.getY(), point.getZ());
             continue;
         }
 
-        double angle = atan2(*iter_y, *iter_x);
+        double angle = atan2(point.getY(), point.getX());
         if (angle < scan_msg->angle_min || angle > scan_msg->angle_max) {
             //ROS_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, scan_msg->angle_min, scan_msg->angle_max);
             continue;
@@ -127,7 +129,7 @@ void PointCloudHandler::dronePoseCallback(const geometry_msgs::PoseStamped::Cons
 // Mavlink Message:
 // https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
 // Mavros plugin:
-// https://github.com/mavlink/mavros/blob/ros2/mavros_extras/src/plugins/obstacle_distance.cpp
+// https://github.com/mavlink/mavros/blob/master/mavros_extras/src/plugins/obstacle_distance.cpp
 void PointCloudHandler::publishObstacleDistances(const std_msgs::Header &header, const std::vector<float> &distances) {
     if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
         // # no new frame
