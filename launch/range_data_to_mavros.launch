@@ -8,6 +8,7 @@
     <arg name="depth_info_topic" default="zed2i/zed_node/depth/camera_info"/>
     <arg name="point_cloud_topic" default="/velodyne_points"/>
     <arg name="mavros_obstacle_topic" default="/mavros/obstacle/send"/>
+    <arg name="target_frame" default="base_link_frd"/>
 
     <!-- params -->
     <arg name="min_height" default="-1.0"/>
@@ -23,6 +24,7 @@
         <param name="depth_info_topic" value="$(arg depth_info_topic)"/>
         <param name="point_cloud_topic" value="$(arg point_cloud_topic)"/>
         <param name="mavros_obstacle_topic" value="$(arg mavros_obstacle_topic)"/>
+        <param name="target_frame" value="$(arg target_frame)"/>
 
         <param name="min_height" value="$(arg min_height)"/>
         <param name="max_height" value="$(arg max_height)"/>

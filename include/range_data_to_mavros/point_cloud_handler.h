@@ -57,11 +57,6 @@ class PointCloudHandler {
         double use_inf_;
 
         bool vehicle_state_received_;
-
-        void setObstacleDistanceParams(const sensor_msgs::PointCloud2 &msg);
-        void distancesFromPointCloud(const sensor_msgs::PointCloud2 &point_cloud, std::vector<float> &distances);
-        int findObstacleLineHeight();
-        void publishObstacleDistances(const std_msgs::Header &header, const std::vector<float> &distances);
 };
 
 #endif

@@ -11,7 +11,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     , nh_(node)
     , point_cloud_topic_("/velodyne_points")
     , mavros_obstacle_topic_("/mavros/obstacle/send")
-    , target_frame_("")
+    , target_frame_("base_link_frd")
     , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
     , distances_array_length_(72)
     , min_height_(std::numeric_limits<double>::min())
@@ -24,6 +24,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
 {   
     private_nh_.param<std::string>("point_cloud_topic", point_cloud_topic_, point_cloud_topic_);
     private_nh_.param<std::string>("mavros_obstacle_topic", mavros_obstacle_topic_, mavros_obstacle_topic_);
+    private_nh_.param<std::string>("target_frame", target_frame_, target_frame_);
     private_nh_.param<double>("min_height", min_height_, min_height_);
     private_nh_.param<double>("max_height", max_height_, max_height_);
     private_nh_.param<double>("angle_min", angle_min_, angle_min_);
@@ -71,10 +72,13 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
 
         // Convert point to our reference frame, where points are relative to sensor's height in an absolute sense, based on vehicle IMU data
         tf2::Vector3 point(*iter_x, *iter_y, *iter_z);
-        tf2::Quaternion q;
-        tf2::fromMsg(last_pose_.pose.orientation, q);
-        tf2::Vector3 rotated_point = tf2::quatRotate(q, point);
 
+        if (vehicle_state_received_) {
+            tf2::Quaternion q;
+            tf2::fromMsg(last_pose_.pose.orientation, q);
+            point = tf2::quatRotate(q, point);
+        }
+        
         // Y axis swap from FLU to FRD, since mavros wants FRD. 
         // Sort of hacky, might be better to do with real ROS transforms using the base_link_frd frame
         point.setY(-point.getY());
@@ -110,18 +114,7 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
 
     }
 
-    mavros_obstacle_publisher_.publish(*scan_msg);
-}
-
-void PointCloudHandler::dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
-    last_pose_ = *msg;
-}
-
-// Mavlink Message:
-// https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
-// Mavros plugin:
-// https://github.com/mavlink/mavros/blob/master/mavros_extras/src/plugins/obstacle_distance.cpp
-void PointCloudHandler::publishObstacleDistances(const std_msgs::Header &header, const std::vector<float> &distances) {
+    // Publish laserscan message
     if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
         // # no new frame
         ROS_WARN("no new frame");
@@ -129,30 +122,10 @@ void PointCloudHandler::publishObstacleDistances(const std_msgs::Header &header,
     }
     last_obstacle_distance_sent_ms = ros::Time::now().toSec();
 
-    sensor_msgs::LaserScan obstacle_msg;
-    obstacle_msg.header.frame_id = "base_link";
-    obstacle_msg.header.stamp = header.stamp;
-    obstacle_msg.range_max = range_max_;
-    obstacle_msg.range_min = range_min_;
-    obstacle_msg.ranges = distances;
-    obstacle_msg.angle_increment = angle_increment_ * M_PI / 180;
-    obstacle_msg.time_increment = 0;
-    obstacle_msg.scan_time = 0;
-    obstacle_msg.angle_max = angle_max_;
-    obstacle_msg.angle_min = angle_min_;
+    mavros_obstacle_publisher_.publish(*scan_msg);
+}
 
-    mavros_obstacle_publisher_.publish(obstacle_msg);
-
-    // Prior code example below- uses Mavlink message directly
-    // conn.mav.obstacle_distance_send(
-    //     current_time_us,    // us Timestamp (UNIX time or time since system boot)
-    //     0,                  // sensor_type, defined here: https://mavlink.io/en/messages/common.html#MAV_DISTANCE_SENSOR
-    //     distances,          // distances,    uint16_t[72],   cm
-    //     0,                  // increment,    uint8_t,        deg
-    //     min_depth_cm,	    // min_distance, uint16_t,       cm
-    //     max_depth_cm,       // max_distance, uint16_t,       cm
-    //     increment_f,	    // increment_f,  float,          deg
-    //     angle_offset,       // angle_offset, float,          deg
-    //     12                  // MAV_FRAME, vehicle-front aligned: https://mavlink.io/en/messages/common.html#MAV_FRAME_BODY_FRD    
-    // )
+void PointCloudHandler::dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
+    vehicle_state_received_ = true;
+    last_pose_ = *msg;
 }
