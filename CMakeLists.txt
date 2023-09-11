@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_msgs
   tf2_ros
   tf2_geometry_msgs
+  pcl_ros
 )
 
 find_package(OpenCV REQUIRED)
@@ -31,6 +32,7 @@ catkin_package(
     tf2_msgs
     tf2_ros
     tf2_geometry_msgs
+    pcl_ros
 )
 
 ###########
@@ -39,14 +41,14 @@ catkin_package(
 
 # Commented out because this seems to mess up the pointcloud library
 
-# c++11 support required
-# include(CheckCXXCompilerFlag)
-# check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
-# if(COMPILER_SUPPORTS_CXX11)
-#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-# else()
-#   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-# endif()
+# c++14 support required
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-std=c++14" COMPILER_SUPPORTS_CXX14)
+if(COMPILER_SUPPORTS_CXX14)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+else()
+  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
+endif()
 
 ## Specify additional locations of header files
 include_directories(

@@ -15,6 +15,7 @@
   <depend>image_geometry</depend>
   <depend>mavros_msgs</depend>
   <depend>message_filters</depend>
+  <depend>pcl_ros</depend>
   <depend>roscpp</depend>
   <depend>roslib</depend>
   <depend>std_msgs</depend>

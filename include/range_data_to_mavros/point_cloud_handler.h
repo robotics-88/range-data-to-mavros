@@ -12,8 +12,9 @@ Author: Gus Meyer <gus@robotics88.com>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/point_cloud2_iterator.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <pcl_ros/point_cloud.h>
+#include "pcl_ros/transforms.h"
 
 /**
  * @class PointCloudHandler
@@ -31,6 +32,9 @@ class PointCloudHandler {
     private:
         ros::NodeHandle private_nh_;
         ros::NodeHandle nh_;
+
+        tf2_ros::Buffer tf_buffer_;
+        tf2_ros::TransformListener tf_listener_;
 
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;

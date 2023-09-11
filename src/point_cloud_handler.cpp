@@ -9,9 +9,10 @@ Author: Gus Meyer <gus@robotics88.com>
 PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     : private_nh_("~")
     , nh_(node)
+    , tf_listener_(tf_buffer_)
     , point_cloud_topic_("/velodyne_points")
     , mavros_obstacle_topic_("/mavros/obstacle/send")
-    , target_frame_("base_link_frd")
+    , target_frame_("")
     , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
     , distances_array_length_(72)
     , min_height_(std::numeric_limits<double>::min())
@@ -59,37 +60,55 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     scan_msg->range_max = range_max_;
     scan_msg->ranges.assign(distances_array_length_, UINT16_MAX);
 
+    // Handle point cloud and put it in PCL format
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_frd(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::fromROSMsg(*msg, *cloud);
+
+    // Transform to FRD frame (this is what MAVROS expects)
+    geometry_msgs::TransformStamped pcl_tf;
+    try {
+        pcl_tf = tf_buffer_.lookupTransform(target_frame_, msg->header.frame_id, msg->header.stamp);
+    }
+    catch (tf2::TransformException &ex) {
+        ROS_WARN("%s",ex.what());
+        return;
+    }
+    pcl_ros::transformPointCloud(*cloud, *cloud_frd, pcl_tf.transform);
+
     // Iterate through points
-    for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg, "x"),
-        iter_y(*msg, "y"), iter_z(*msg, "z");
-        iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z)     
-    { 
-        // Check validity of point
-        if (std::isnan(*iter_x) || std::isnan(*iter_y) || std::isnan(*iter_z)) {
-            // ROS_DEBUG("rejected for nan in point(%f, %f, %f)\n", *iter_x, *iter_y, *iter_z);
-            continue;
-        }
+    for (auto &point : *cloud)     
+    {
+        tf2::Vector3 point_tf(point.x, point.y, point.z);
 
         // Convert point to our reference frame, where points are relative to sensor's height in an absolute sense, based on vehicle IMU data
-        tf2::Vector3 point(*iter_x, *iter_y, *iter_z);
-
         if (vehicle_state_received_) {
-            tf2::Quaternion q;
-            tf2::fromMsg(last_pose_.pose.orientation, q);
-            point = tf2::quatRotate(q, point);
+            tf2::Quaternion q_flu, q_flu_frd, q_frd;
+
+            // Received orientation in baselink FLU frame
+            tf2::fromMsg(last_pose_.pose.orientation, q_flu);
+
+            // Relative rotation from FLU to FRD frame
+            tf2::fromMsg(pcl_tf.transform.rotation, q_flu_frd);
+
+            // Vehicle orientation in FRD/NED frame
+            q_frd = q_flu_frd * q_flu;
+
+            // Rotate points based on vehicle
+            point_tf = tf2::quatRotate(q_frd, point_tf);
         }
         
         // Y axis swap from FLU to FRD, since mavros wants FRD. 
         // Sort of hacky, might be better to do with real ROS transforms using the base_link_frd frame
-        point.setY(-point.getY());
+        
 
         // Filter out points outside height range relative to drone
-        if (point.getZ() > max_height_ || point.getZ() < min_height_) {
+        if (point.z > max_height_ || point.z < min_height_) {
             // ROS_DEBUG("rejected for height %f not in range (%f, %f)\n", point.getZ(), min_height_, max_height_);
             continue;
         }
 
-        double range = hypot(point.getX(), point.getY());
+        double range = hypot(point.x, point.y);
         if (range < range_min_) {
             //ROS_DEBUG("rejected for range %f below minimum value %f. Point: (%f, %f, %f)", range, range_min_, point.getX(), point.getY(), point.getZ());
             continue;
@@ -100,7 +119,7 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
             continue;
         }
 
-        double angle = atan2(point.getY(), point.getX());
+        double angle = atan2(point.y, point.x);
         if (angle < scan_msg->angle_min || angle > scan_msg->angle_max) {
             //ROS_DEBUG("rejected for angle %f not in range (%f, %f)\n", angle, scan_msg->angle_min, scan_msg->angle_max);
             continue;

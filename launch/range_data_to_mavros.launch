@@ -15,7 +15,7 @@
     <arg name="max_height" default="1.0"/>
     <arg name="angle_min" default="-3.14159"/>
     <arg name="angle_max" default="3.14159"/>
-    <arg name="range_min" default="0.0"/>
+    <arg name="range_min" default="0.2"/>
     <arg name="range_max" default="20.0"/>
 
     <node pkg="range_data_to_mavros" type="range_data_to_mavros_node" respawn="false" name="range_data_to_mavros" output="screen">
