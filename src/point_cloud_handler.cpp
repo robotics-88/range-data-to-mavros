@@ -21,6 +21,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     , angle_max_(2.0*M_PI)
     , range_min_(0.0)
     , range_max_(std::numeric_limits<double>::max())
+    , imu_timeout_(0.25)
     , vehicle_state_received_(false)
 {   
     private_nh_.param<std::string>("point_cloud_topic", point_cloud_topic_, point_cloud_topic_);
@@ -32,6 +33,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     private_nh_.param<double>("angle_max", angle_max_, angle_max_);
     private_nh_.param<double>("range_min", range_min_, range_min_);
     private_nh_.param<double>("range_max", range_max_, range_max_);
+    private_nh_.param<double>("imu_timeout", imu_timeout_, imu_timeout_);
 
     angle_increment_ = (angle_max_ - angle_min_) / distances_array_length_;
 
@@ -63,6 +65,8 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     // Handle point cloud and put it in PCL format
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_frd(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_frd_stabilized(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_processed(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::fromROSMsg(*msg, *cloud);
 
     // Transform to FRD frame (this is what MAVROS expects)
@@ -76,32 +80,35 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     }
     pcl_ros::transformPointCloud(*cloud, *cloud_frd, pcl_tf.transform);
 
+    // Apply drone orientation correction if vehicle IMU data was received recently
+    if ((ros::Time::now() - last_pose_.header.stamp) < ros::Duration(imu_timeout_)) {
+        tf2::Quaternion q_flu, q_flu_frd, q_frd;
+        // Received orientation in baselink FLU frame
+        tf2::fromMsg(last_pose_.pose.orientation, q_flu);
+        // Relative rotation from FLU to FRD frame
+        tf2::fromMsg(pcl_tf.transform.rotation, q_flu_frd);
+        // Vehicle orientation in FRD/NED frame
+        q_frd = q_flu_frd * q_flu;
+
+        geometry_msgs::TransformStamped pcl_tf_stabilized;
+        pcl_tf_stabilized.transform.translation.x = 0;
+        pcl_tf_stabilized.transform.translation.y = 0;
+        pcl_tf_stabilized.transform.translation.z = 0;
+        pcl_tf_stabilized.transform.rotation.x = q_frd.getX();
+        pcl_tf_stabilized.transform.rotation.y = q_frd.getY();
+        pcl_tf_stabilized.transform.rotation.z = q_frd.getZ();
+        pcl_tf_stabilized.transform.rotation.w = q_frd.getW();
+        pcl_ros::transformPointCloud(*cloud_frd, *cloud_frd_stabilized, pcl_tf_stabilized.transform);
+        cloud_processed = cloud_frd_stabilized;
+    }
+    else {
+        cloud_processed = cloud_frd;
+        ROS_WARN("No recent IMU data, using unstabilized point cloud");
+    }
+
     // Iterate through points
-    for (auto &point : *cloud)     
+    for (auto &point : *cloud_processed)
     {
-        tf2::Vector3 point_tf(point.x, point.y, point.z);
-
-        // Convert point to our reference frame, where points are relative to sensor's height in an absolute sense, based on vehicle IMU data
-        if (vehicle_state_received_) {
-            tf2::Quaternion q_flu, q_flu_frd, q_frd;
-
-            // Received orientation in baselink FLU frame
-            tf2::fromMsg(last_pose_.pose.orientation, q_flu);
-
-            // Relative rotation from FLU to FRD frame
-            tf2::fromMsg(pcl_tf.transform.rotation, q_flu_frd);
-
-            // Vehicle orientation in FRD/NED frame
-            q_frd = q_flu_frd * q_flu;
-
-            // Rotate points based on vehicle
-            point_tf = tf2::quatRotate(q_frd, point_tf);
-        }
-        
-        // Y axis swap from FLU to FRD, since mavros wants FRD. 
-        // Sort of hacky, might be better to do with real ROS transforms using the base_link_frd frame
-        
-
         // Filter out points outside height range relative to drone
         if (point.z > max_height_ || point.z < min_height_) {
             // ROS_DEBUG("rejected for height %f not in range (%f, %f)\n", point.getZ(), min_height_, max_height_);
@@ -130,7 +137,6 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
         if (range < scan_msg->ranges[index]) {
             scan_msg->ranges[index] = range;
         }
-
     }
 
     // Publish laserscan message
@@ -145,6 +151,5 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
 }
 
 void PointCloudHandler::dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
-    vehicle_state_received_ = true;
     last_pose_ = *msg;
 }

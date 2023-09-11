@@ -57,8 +57,7 @@ class PointCloudHandler {
         double scan_time_;
         double range_min_;
         double range_max_;
-        double inf_epsilon_;
-        double use_inf_;
+        double imu_timeout_;
 
         bool vehicle_state_received_;
 };
