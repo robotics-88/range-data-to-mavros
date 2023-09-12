@@ -39,6 +39,8 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
 
     point_cloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(point_cloud_topic_, 10, &PointCloudHandler::pointCloudCallback, this);
 
+    drone_pose_subscriber_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &PointCloudHandler::dronePoseCallback, this);
+
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
 }
 
@@ -81,7 +83,7 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     pcl_ros::transformPointCloud(*cloud, *cloud_frd, pcl_tf.transform);
 
     // Apply drone orientation correction if vehicle IMU data was received recently
-    if ((ros::Time::now() - last_pose_.header.stamp) < ros::Duration(imu_timeout_)) {
+    if ((msg->header.stamp - last_pose_.header.stamp) < ros::Duration(imu_timeout_)) {
         tf2::Quaternion q_flu, q_flu_frd, q_frd;
         // Received orientation in baselink FLU frame
         tf2::fromMsg(last_pose_.pose.orientation, q_flu);

@@ -39,6 +39,7 @@ class PointCloudHandler {
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;
         ros::Subscriber point_cloud_subscriber_;
+        ros::Subscriber drone_pose_subscriber_;
 
         std::vector<float> latest_distances_;
         double last_obstacle_distance_sent_ms;
