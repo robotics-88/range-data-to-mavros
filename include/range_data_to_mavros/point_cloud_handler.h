@@ -39,7 +39,6 @@ class PointCloudHandler {
 
         ros::Subscriber point_cloud_subscriber_;
         ros::Publisher mavros_obstacle_publisher_;
-        ros::Publisher stabilized_pointcloud_publisher_;
 
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;
@@ -58,7 +57,7 @@ class PointCloudHandler {
         double scan_time_; // Not used
         double range_min_; // Minimum relevant range of the rangefinder
         double range_max_; // Maximum relevant range of the rangefinder
-        double orientation_timeout_; // How long we will still use latest orientation data for pitch/roll correction
+        double orientation_timeout_; // How long ago we will still use latest orientation data for pitch/roll correction
 };
 
 #endif

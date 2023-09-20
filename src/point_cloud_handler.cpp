@@ -41,8 +41,6 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     point_cloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(point_cloud_topic_, 10, &PointCloudHandler::pointCloudCallback, this);
 
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
-
-    stabilized_pointcloud_publisher_ = nh_.advertise<sensor_msgs::PointCloud2>("/stabilized_pointcloud", 10);
 }
 
 PointCloudHandler::~PointCloudHandler(){}
@@ -131,10 +129,8 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
 
         // Transform point cloud
         pcl_ros::transformPointCloud(*cloud_frd, *cloud_frd_stabilized, frd_stabilized.transform);
-        cloud_processed = cloud_frd_stabilized;
-
         cloud_frd_stabilized->header.frame_id = target_frame_;
-        stabilized_pointcloud_publisher_.publish(cloud_frd_stabilized);
+        cloud_processed = cloud_frd_stabilized;
     }
     else {
         cloud_processed = cloud_frd;
