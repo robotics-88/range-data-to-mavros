@@ -88,9 +88,6 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
         tf2::Quaternion q_NWU;
         tf2::fromMsg(last_pose_.pose.orientation, q_NWU);
 
-        // TESTING
-        // q_NWU.setRPY(0.0, 0.0, 0.78);
-
         // Convert to NED
         tf2::Quaternion q_data_frd, q_data_frd_inv;
 
