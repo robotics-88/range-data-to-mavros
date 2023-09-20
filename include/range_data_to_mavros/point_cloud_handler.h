@@ -15,6 +15,7 @@ Author: Gus Meyer <gus@robotics88.com>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <pcl_ros/point_cloud.h>
 #include "pcl_ros/transforms.h"
+#include "tf/transform_broadcaster.h"
 
 /**
  * @class PointCloudHandler
@@ -27,7 +28,6 @@ class PointCloudHandler {
         ~PointCloudHandler();
 
         void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
-        void dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -35,32 +35,30 @@ class PointCloudHandler {
 
         tf2_ros::Buffer tf_buffer_;
         tf2_ros::TransformListener tf_listener_;
+        tf2_ros::TransformBroadcaster tf_b_;
+
+        ros::Subscriber point_cloud_subscriber_;
+        ros::Publisher mavros_obstacle_publisher_;
+        ros::Publisher stabilized_pointcloud_publisher_;
 
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;
-        ros::Subscriber point_cloud_subscriber_;
-        ros::Subscriber drone_pose_subscriber_;
 
-        std::vector<float> latest_distances_;
         double last_obstacle_distance_sent_ms;
-        ros::Publisher mavros_obstacle_publisher_;
-
-        geometry_msgs::PoseStamped last_pose_;
-
+        
         // Params
-        std::string target_frame_;
-        double distances_array_length_;
-        double min_height_;
-        double max_height_;
-        double angle_min_;
-        double angle_max_;
-        double angle_increment_;
-        double scan_time_;
-        double range_min_;
-        double range_max_;
-        double imu_timeout_;
-
-        bool vehicle_state_received_;
+        std::string target_frame_; // This should be a 'stabilized' FRD frame
+        std::string frd_frame_; // The 'unstabilized' FRD frame of the vehicle
+        double distances_array_length_; // Number of fields in the distances array
+        double min_height_; // Height relative to the vehilce below which points will be ignored
+        double max_height_; // Height relative to the vehilce below which points will be ignored
+        double angle_min_; // Minimum 'angle' of the Laserscan
+        double angle_max_; // Maximum 'angle' of the Laserscan
+        double angle_increment_; // Angle increment between distance array fields
+        double scan_time_; // Not used
+        double range_min_; // Minimum relevant range of the rangefinder
+        double range_max_; // Maximum relevant range of the rangefinder
+        double orientation_timeout_; // How long we will still use latest orientation data for pitch/roll correction
 };
 
 #endif
