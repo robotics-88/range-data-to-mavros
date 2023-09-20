@@ -44,7 +44,6 @@ class PointCloudHandler {
         ros::Publisher mavros_obstacle_publisher_;
 
         std::string point_cloud_topic_;
-        std::string mavros_obstacle_topic_;
 
         double last_obstacle_distance_sent_ms;
 

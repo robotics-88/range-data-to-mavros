@@ -10,8 +10,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     : private_nh_("~")
     , nh_(node)
     , tf_listener_(tf_buffer_)
-    , point_cloud_topic_("/velodyne_points")
-    , mavros_obstacle_topic_("/mavros/obstacle/send")
+    , point_cloud_topic_("")
     , frd_frame_("")
     , target_frame_("")
     , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
@@ -25,7 +24,6 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     , orientation_timeout_(0.1)
 {   
     private_nh_.param<std::string>("point_cloud_topic", point_cloud_topic_, point_cloud_topic_);
-    private_nh_.param<std::string>("mavros_obstacle_topic", mavros_obstacle_topic_, mavros_obstacle_topic_);
     private_nh_.param<std::string>("target_frame", target_frame_, target_frame_);
     private_nh_.param<std::string>("frd_frame", frd_frame_, frd_frame_);
     private_nh_.param<double>("min_height", min_height_, min_height_);
@@ -42,7 +40,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
 
     drone_pose_subscriber_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &PointCloudHandler::dronePoseCallback, this);
 
-    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
+    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>("/mavros/obstacle/send", 10);
 }
 
 PointCloudHandler::~PointCloudHandler(){}

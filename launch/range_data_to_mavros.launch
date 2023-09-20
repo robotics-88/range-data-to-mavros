@@ -7,7 +7,6 @@
     <arg name="depth_image_topic" default="zed2i/zed_node/depth/depth_registered"/>
     <arg name="depth_info_topic" default="zed2i/zed_node/depth/camera_info"/>
     <arg name="point_cloud_topic" default="/velodyne_points"/>
-    <arg name="mavros_obstacle_topic" default="/mavros/obstacle/send"/>
     <arg name="target_frame" default="base_link_frd_stabilized"/>
     <arg name="frd_frame" default="base_link_frd"/>
 
