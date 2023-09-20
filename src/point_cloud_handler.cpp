@@ -22,7 +22,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     , angle_max_(2.0*M_PI)
     , range_min_(0.0)
     , range_max_(std::numeric_limits<double>::max())
-    , orientation_timeout_(0.25)
+    , orientation_timeout_(0.1)
 {   
     private_nh_.param<std::string>("point_cloud_topic", point_cloud_topic_, point_cloud_topic_);
     private_nh_.param<std::string>("mavros_obstacle_topic", mavros_obstacle_topic_, mavros_obstacle_topic_);
@@ -39,6 +39,8 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     angle_increment_ = (angle_max_ - angle_min_) / distances_array_length_;
 
     point_cloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(point_cloud_topic_, 10, &PointCloudHandler::pointCloudCallback, this);
+
+    drone_pose_subscriber_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &PointCloudHandler::dronePoseCallback, this);
 
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
 }
@@ -71,39 +73,44 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     pcl::fromROSMsg(*msg, *cloud);
 
     // Transform to FRD frame (this is what MAVROS expects)
-    geometry_msgs::TransformStamped pcl_tf;
+    geometry_msgs::TransformStamped frd_tf;
     try {
-        pcl_tf = tf_buffer_.lookupTransform(frd_frame_, msg->header.frame_id, msg->header.stamp);
+        frd_tf = tf_buffer_.lookupTransform(frd_frame_, msg->header.frame_id, msg->header.stamp);
     }
     catch (tf2::TransformException &ex) {
         ROS_WARN("%s",ex.what());
         return;
     }
-    pcl_ros::transformPointCloud(*cloud, *cloud_frd, pcl_tf.transform);
-
-    geometry_msgs::TransformStamped stab_tf;
-    try {
-        stab_tf = tf_buffer_.lookupTransform(frd_frame_, "map_ned", ros::Time(0));
-    }
-    catch (tf2::TransformException &ex) {
-        ROS_WARN("%s",ex.what());
-        return;
-    }
+    pcl_ros::transformPointCloud(*cloud, *cloud_frd, frd_tf.transform);
 
     // Apply drone orientation correction if vehicle orientation was received recently
-    if ((stab_tf.header.stamp - ros::Time::now()) < ros::Duration(orientation_timeout_)) {
+    if ((ros::Time::now() - last_pose_.header.stamp) < ros::Duration(orientation_timeout_)) {
 
-        // Get rotation in FRD
-        tf2::Quaternion q_FRD;
-        tf2::fromMsg(stab_tf.transform.rotation, q_FRD);
+        // Get rotation in NWU
+        tf2::Quaternion q_NWU;
+        tf2::fromMsg(last_pose_.pose.orientation, q_NWU);
+
+        // TESTING
+        // q_NWU.setRPY(0.0, 0.0, 0.78);
+
+        // Convert to NED
+        tf2::Quaternion q_data_frd, q_data_frd_inv;
+
+        tf2::fromMsg(frd_tf.transform.rotation, q_data_frd);
+
+        q_data_frd_inv = q_data_frd;
+        q_data_frd_inv[3] = -q_data_frd[3];
+
+        tf2::Quaternion q_NED = q_data_frd_inv * q_NWU * q_data_frd;
 
         // Get RPY from quaternion
         tf2Scalar roll, pitch, yaw;
-        tf2::Matrix3x3 mat(q_FRD);
+        tf2::Matrix3x3 mat(q_NED);
         mat.getRPY(roll, pitch, yaw);
 
         // 'Stabilize' the frame by applying pitch/roll rotation (but no yaw)
-        q_FRD.setRPY(roll, pitch, 0.0);
+        tf2::Quaternion q_NED_stab;
+        q_NED_stab.setRPY(-roll, -pitch, 0.0);
 
         // Create transform
         geometry_msgs::TransformStamped frd_stabilized;
@@ -113,19 +120,20 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
         frd_stabilized.transform.translation.x = 0;
         frd_stabilized.transform.translation.y = 0;
         frd_stabilized.transform.translation.z = 0;
-        frd_stabilized.transform.rotation.x = q_FRD.getX();
-        frd_stabilized.transform.rotation.y = q_FRD.getY();
-        frd_stabilized.transform.rotation.z = q_FRD.getZ();
-        frd_stabilized.transform.rotation.w = q_FRD.getW();
+        frd_stabilized.transform.rotation.x = q_NED_stab.getX();
+        frd_stabilized.transform.rotation.y = q_NED_stab.getY();
+        frd_stabilized.transform.rotation.z = q_NED_stab.getZ();
+        frd_stabilized.transform.rotation.w = q_NED_stab.getW();
         tf_b_.sendTransform(frd_stabilized);
 
         // Rotate point cloud points by inverse transform to apply pitch/roll correction for this frame
-        q_FRD.setRPY(-roll, -pitch, 0.0);
+        tf2::Quaternion q_NED_stab_inv;
+        q_NED_stab_inv.setRPY(roll, pitch, 0.0);
 
-        frd_stabilized.transform.rotation.x = q_FRD.getX();
-        frd_stabilized.transform.rotation.y = q_FRD.getY();
-        frd_stabilized.transform.rotation.z = q_FRD.getZ();
-        frd_stabilized.transform.rotation.w = q_FRD.getW();
+        frd_stabilized.transform.rotation.x = q_NED_stab_inv.getX();
+        frd_stabilized.transform.rotation.y = q_NED_stab_inv.getY();
+        frd_stabilized.transform.rotation.z = q_NED_stab_inv.getZ();
+        frd_stabilized.transform.rotation.w = q_NED_stab_inv.getW();
 
         // Transform point cloud
         pcl_ros::transformPointCloud(*cloud_frd, *cloud_frd_stabilized, frd_stabilized.transform);
@@ -181,4 +189,8 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     last_obstacle_distance_sent_ms = ros::Time::now().toSec();
 
     mavros_obstacle_publisher_.publish(*scan_msg);
+}
+
+void PointCloudHandler::dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg) {
+    last_pose_ = *msg;
 }

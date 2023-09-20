@@ -28,6 +28,7 @@ class PointCloudHandler {
         ~PointCloudHandler();
 
         void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
+        void dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -38,12 +39,16 @@ class PointCloudHandler {
         tf2_ros::TransformBroadcaster tf_b_;
 
         ros::Subscriber point_cloud_subscriber_;
+        ros::Subscriber drone_pose_subscriber_;
+
         ros::Publisher mavros_obstacle_publisher_;
 
         std::string point_cloud_topic_;
         std::string mavros_obstacle_topic_;
 
         double last_obstacle_distance_sent_ms;
+
+        geometry_msgs::PoseStamped last_pose_;
         
         // Params
         std::string target_frame_; // This should be a 'stabilized' FRD frame
