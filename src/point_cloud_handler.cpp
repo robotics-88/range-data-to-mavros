@@ -137,6 +137,7 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     }
     else {
         cloud_processed = cloud_frd;
+        scan_msg->header.frame_id = frd_frame_;
         ROS_WARN("No recent vehicle orientation data, using unstabilized point cloud");
     }
 
