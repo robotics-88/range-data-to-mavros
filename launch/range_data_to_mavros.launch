@@ -1,0 +1,45 @@
+<launch>
+
+    <!-- range data type i.e. depth_image or point_cloud -->
+    <arg name="data_type" default="depth_image"/> 
+
+    <!-- topic names -->
+    <arg name="depth_image_topic" default="zed2i/zed_node/depth/depth_registered"/>
+    <arg name="depth_info_topic" default="zed2i/zed_node/depth/camera_info"/>
+    <arg name="point_cloud_topic" default="/velodyne_points"/>
+    <arg name="target_frame" default="base_link_frd_stabilized"/>
+    <arg name="frd_frame" default="base_link_frd"/>
+
+    <!-- params -->
+    <arg name="min_height" default="-1.0"/>
+    <arg name="max_height" default="1.0"/>
+    <arg name="angle_min" default="-3.14159"/>
+    <arg name="angle_max" default="3.14159"/>
+    <arg name="range_min" default="0.2"/>
+    <arg name="range_max" default="30.0"/>
+    <arg name="imu_timeout" default="0.25"/>
+
+    <node pkg="range_data_to_mavros" type="range_data_to_mavros_node" respawn="false" name="range_data_to_mavros" output="screen">
+        <param name="data_type" type="string" value="$(arg data_type)"/> 
+        <param name="depth_image_topic" value="$(arg depth_image_topic)"/>
+        <param name="depth_info_topic" value="$(arg depth_info_topic)"/>
+        <param name="point_cloud_topic" value="$(arg point_cloud_topic)"/>
+        <param name="target_frame" value="$(arg target_frame)"/>
+        <param name="frd_frame" value="$(arg frd_frame)"/>
+
+        <param name="min_height" value="$(arg min_height)"/>
+        <param name="max_height" value="$(arg max_height)"/>
+        <param name="angle_min" value="$(arg angle_min)"/>
+        <param name="angle_max" value="$(arg angle_max)"/>
+        <param name="range_min" value="$(arg range_min)"/>
+        <param name="range_max" value="$(arg range_max)"/>
+        <param name="imu_timeout" value="$(arg imu_timeout)"/>
+        
+    </node>
+
+    <arg name="use_rviz" default="false"/>
+
+    <group if="$(arg use_rviz)">
+        <node type="rviz" name="depth_rviz" pkg="rviz" args="-d $(find range_data_to_mavros)/config/depth_smoothed.rviz" />
+    </group>
+</launch>

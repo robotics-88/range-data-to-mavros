@@ -3,19 +3,18 @@
 Author: Erin Linebarger <erin@robotics88.com> 
 */
 
-#include "depth_image_to_mavlink/depth_image_to_mavlink.h"
+#include "range_data_to_mavros/depth_image_handler.h"
 
 #include <math.h>
 #include <opencv2/photo.hpp>
 
-namespace depth_image_to_mavlink
-{
-DepthImageToMavlink::DepthImageToMavlink(ros::NodeHandle& node)
+DepthImageHandler::DepthImageHandler(ros::NodeHandle& node)
   : private_nh_("~")
   , nh_(node)
   , tf_listener_(tf_buffer_)
   , depth_topic_("zed2i/zed_node/depth/depth_registered")
   , depth_info_topic_("zed2i/zed_node/depth/camera_info")
+  , mavros_obstacle_topic_("/mavros/obstacle/send")
   , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
   , obstacle_params_set_(false)
   , depth_scale(1.0)
@@ -25,23 +24,23 @@ DepthImageToMavlink::DepthImageToMavlink(ros::NodeHandle& node)
   , min_depth_m(0.25)
   , max_depth_m(10.0)
   , vehicle_state_received_(false)
-{   
-    private_nh_.param<std::string>("depth_image", depth_topic_, depth_topic_);
-    private_nh_.param<std::string>("depth_info", depth_info_topic_, depth_info_topic_);
-    std::string obstacle_topic = "/mavros/obstacle/send";
-    private_nh_.param<std::string>("mavros_obstacle_topic", obstacle_topic, obstacle_topic);
+{
+
+    private_nh_.param<std::string>("depth_image_topic", depth_topic_, depth_topic_);
+    private_nh_.param<std::string>("depth_info_topic", depth_info_topic_, depth_info_topic_);
+    private_nh_.param<std::string>("mavros_obstacle_topic", mavros_obstacle_topic_, mavros_obstacle_topic_);
 
     depth_image_subscriber_.subscribe(nh_, depth_topic_, 10);
     depth_info_subscriber_.subscribe(nh_, depth_info_topic_, 10);
     sync_.reset(new Sync(MySyncPolicy(10), depth_image_subscriber_, depth_info_subscriber_));
-    sync_->registerCallback(boost::bind(&DepthImageToMavlink::depthImageCallback, this, _1, _2));
+    sync_->registerCallback(boost::bind(&DepthImageHandler::depthImageCallback, this, _1, _2));
 
-    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(obstacle_topic, 10);
+    mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>(mavros_obstacle_topic_, 10);
 }
 
-DepthImageToMavlink::~DepthImageToMavlink(){}
+DepthImageHandler::~DepthImageHandler(){}
 
-void DepthImageToMavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info) {
+void DepthImageHandler::depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info) {
     // Get depth image as mat
     cv::Mat depth_mat;
     cv_bridge::CvImagePtr cv_ptr; 
@@ -56,10 +55,21 @@ void DepthImageToMavlink::depthImageCallback(const sensor_msgs::ImageConstPtr &m
     distancesFromDepthImage(depth_mat, distances);
     std::reverse(distances.begin(),distances.end()); // LaserScan is CCW if z-axis upward
 
-    sendObstacleDistanceMessage(msg->header, distances);
+    if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
+        // # no new frame
+        ROS_WARN("no new frame");
+        return;
+    }
+    last_obstacle_distance_sent_ms = ros::Time::now().toSec();
+    if (!obstacle_params_set_){
+        ROS_WARN("params not set");
+        return;
+    }
+
+    publishObstacleDistances(msg->header, distances);
 }
 
-void DepthImageToMavlink::setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info) {
+void DepthImageHandler::setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info) {
     depth_height = info->height;
     depth_width = info->width;
 
@@ -98,7 +108,7 @@ void DepthImageToMavlink::setObstacleDistanceParams(const sensor_msgs::CameraInf
     obstacle_params_set_ = true;
 }
 
-void DepthImageToMavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances){
+void DepthImageHandler::distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances){
     // # Parameters for obstacle distance message
     int step = std::floor(((double) depth_width) / distances_array_length);
 
@@ -156,7 +166,7 @@ void DepthImageToMavlink::distancesFromDepthImage(const cv::Mat &depth_mat, std:
 // # Find the height of the horizontal line to calculate the obstacle distances
 // #   - Basis: depth camera's vertical FOV, user's input
 // #   - Compensation: vehicle's current pitch angle
-int DepthImageToMavlink::findObstacleLineHeight() {
+int DepthImageHandler::findObstacleLineHeight() {
     // global vehicle_pitch_rad, depth_vfov_deg, DEPTH_HEIGHT
 
     // # Basic position
@@ -180,8 +190,11 @@ int DepthImageToMavlink::findObstacleLineHeight() {
     return obstacle_line_height;
 }
 
-// # https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
-void DepthImageToMavlink::sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances) {
+// Mavlink Message:
+// https://mavlink.io/en/messages/common.html#OBSTACLE_DISTANCE
+// Mavros plugin:
+// https://github.com/mavlink/mavros/blob/ros2/mavros_extras/src/plugins/obstacle_distance.cpp
+void DepthImageHandler::publishObstacleDistances(const std_msgs::Header &header, const std::vector<float> &distances) {
     if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
         // # no new frame
         ROS_WARN("no new frame");
@@ -220,6 +233,4 @@ void DepthImageToMavlink::sendObstacleDistanceMessage(const std_msgs::Header &he
         //     12                  // MAV_FRAME, vehicle-front aligned: https://mavlink.io/en/messages/common.html#MAV_FRAME_BODY_FRD    
         // )
     }
-}
-
 }

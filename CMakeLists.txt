@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(depth_image_to_mavlink)
+cmake_minimum_required(VERSION 3.0.2)
+project(range_data_to_mavros)
 
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_msgs
   tf2_ros
   tf2_geometry_msgs
+  pcl_ros
 )
 
 find_package(OpenCV REQUIRED)
@@ -31,18 +32,22 @@ catkin_package(
     tf2_msgs
     tf2_ros
     tf2_geometry_msgs
+    pcl_ros
 )
 
 ###########
 ## Build ##
 ###########
-# c++11 support required
+
+# Commented out because this seems to mess up the pointcloud library
+
+# c++14 support required
 include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
-if(COMPILER_SUPPORTS_CXX11)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+check_cxx_compiler_flag("-std=c++14" COMPILER_SUPPORTS_CXX14)
+if(COMPILER_SUPPORTS_CXX14)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 else()
-  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+  message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
 endif()
 
 ## Specify additional locations of header files
@@ -53,16 +58,17 @@ include_directories(
 )
 
 # Depth img conversion pkgs
-add_executable(depth_image_to_mavlink_node
-  src/depth_image_to_mavlink_node.cpp
+add_executable(range_data_to_mavros_node
+  src/range_data_to_mavros_node.cpp
 )
-add_library(depth_image_to_mavlink 
-  src/depth_image_to_mavlink.cpp
+add_library(range_data_to_mavros
+  src/depth_image_handler.cpp
+  src/point_cloud_handler.cpp
 )
-add_dependencies(depth_image_to_mavlink ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(range_data_to_mavros ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
-target_link_libraries(depth_image_to_mavlink_node 
-  depth_image_to_mavlink
+target_link_libraries(range_data_to_mavros_node 
+  range_data_to_mavros
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
@@ -72,7 +78,7 @@ target_link_libraries(depth_image_to_mavlink_node
 #############
 
 # install nodes
-install(TARGETS depth_image_to_mavlink
+install(TARGETS range_data_to_mavros
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

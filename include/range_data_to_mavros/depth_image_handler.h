@@ -3,8 +3,8 @@
 Author: Erin Linebarger <erin@robotics88.com> 
 */
 
-#ifndef DEPTH_IMAGE_TO_MAVLINK_H_
-#define DEPTH_IMAGE_TO_MAVLINK_H_
+#ifndef DEPTH_IMAGE_HANDLER_H_
+#define DEPTH_IMAGE_HANDLER_H_
 
 #include <ros/ros.h>
 
@@ -19,16 +19,15 @@ Author: Erin Linebarger <erin@robotics88.com>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_listener.h>
 
-namespace depth_image_to_mavlink {
 /**
- * @class DepthImageToMavlink
- * @brief Converts depth images to mavlink obstacle messages required for obstacle avoidance.
+ * @class DepthImageHandler
+ * @brief Converts depth images to mavros obstacle messages required for obstacle avoidance.
  */
-class DepthImageToMavlink {
+class DepthImageHandler {
 
     public:
-        DepthImageToMavlink(ros::NodeHandle& node);
-        ~DepthImageToMavlink();
+        DepthImageHandler(ros::NodeHandle& node);
+        ~DepthImageHandler();
 
         void depthImageCallback(const sensor_msgs::ImageConstPtr &msg, const sensor_msgs::CameraInfoConstPtr &info);
 
@@ -41,6 +40,7 @@ class DepthImageToMavlink {
 
         std::string depth_topic_;
         std::string depth_info_topic_;
+        std::string mavros_obstacle_topic_;
         message_filters::Subscriber<sensor_msgs::Image> depth_image_subscriber_;
         message_filters::Subscriber<sensor_msgs::CameraInfo> depth_info_subscriber_;
 
@@ -76,9 +76,7 @@ class DepthImageToMavlink {
         void setObstacleDistanceParams(const sensor_msgs::CameraInfoConstPtr &info);
         void distancesFromDepthImage(const cv::Mat &depth_mat, std::vector<float> &distances);
         int findObstacleLineHeight();
-        void sendObstacleDistanceMessage(const std_msgs::Header &header, const std::vector<float> &distances);
+        void publishObstacleDistances(const std_msgs::Header &header, const std::vector<float> &distances);
 };
-
-}
 
 #endif
