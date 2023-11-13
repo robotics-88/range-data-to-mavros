@@ -12,6 +12,7 @@ Author: Gus Meyer <gus@robotics88.com>
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Imu.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <pcl_ros/point_cloud.h>
 #include "pcl_ros/transforms.h"
@@ -28,7 +29,7 @@ class PointCloudHandler {
         ~PointCloudHandler();
 
         void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr &msg);
-        void dronePoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+        void droneImuCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
     private:
         ros::NodeHandle private_nh_;
@@ -47,7 +48,7 @@ class PointCloudHandler {
 
         double last_obstacle_distance_sent_ms;
 
-        geometry_msgs::PoseStamped last_pose_;
+        geometry_msgs::PoseStamped last_imu_;
         
         // Params
         std::string target_frame_; // This should be a 'stabilized' FRD frame
