@@ -13,7 +13,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
     , point_cloud_topic_("")
     , frd_frame_("")
     , target_frame_("")
-    , last_obstacle_distance_sent_ms(ros::Time(0).toSec())
+    , last_obstacle_distance_sent_ms_(ros::Time(0).toSec())
     , distances_array_length_(72)
     , min_height_(std::numeric_limits<double>::min())
     , max_height_(std::numeric_limits<double>::max())
@@ -38,7 +38,7 @@ PointCloudHandler::PointCloudHandler(ros::NodeHandle& node)
 
     point_cloud_subscriber_ = nh_.subscribe<sensor_msgs::PointCloud2>(point_cloud_topic_, 10, &PointCloudHandler::pointCloudCallback, this);
 
-    drone_pose_subscriber_ = nh_.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, &PointCloudHandler::droneImuCallback, this);
+    drone_pose_subscriber_ = nh_.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 10, &PointCloudHandler::droneImuCallback, this);
 
     mavros_obstacle_publisher_ = nh_.advertise<sensor_msgs::LaserScan>("/mavros/obstacle/send", 10);
 }
@@ -177,12 +177,12 @@ void PointCloudHandler::pointCloudCallback(const sensor_msgs::PointCloud2::Const
     }
 
     // Publish laserscan message
-    if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms) {
+    if (ros::Time::now().toSec() == last_obstacle_distance_sent_ms_) {
         // # no new frame
         ROS_WARN("no new frame");
         return;
     }
-    last_obstacle_distance_sent_ms = ros::Time::now().toSec();
+    last_obstacle_distance_sent_ms_ = ros::Time::now().toSec();
 
     mavros_obstacle_publisher_.publish(*scan_msg);
 }
