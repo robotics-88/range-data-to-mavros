@@ -1,4 +1,4 @@
-# depth-image-to-mavlink
+# range_data_to_mavros
 
 This package is named "range_data_to_mavros". It converts range data (i.e. from a depth image or a point cloud) into the format MAVROS utilizes in its [obstacle_distance](https://github.com/mavlink/mavros/blob/master/mavros_extras/src/plugins/obstacle_distance.cpp) plugin. 
 
