@@ -1,5 +1,5 @@
 <launch>
-
+    <arg name="base_frame" default="base_link"/>
     <!-- range data type i.e. depth_image or point_cloud -->
     <arg name="data_type" default="depth_image"/> 
 
@@ -20,6 +20,7 @@
     <arg name="imu_timeout" default="0.25"/>
 
     <node pkg="range_data_to_mavros" type="range_data_to_mavros_node" respawn="false" name="range_data_to_mavros" output="screen">
+        <param name="base_frame" type="string" value="$(arg base_frame)"/> 
         <param name="data_type" type="string" value="$(arg data_type)"/> 
         <param name="depth_image_topic" value="$(arg depth_image_topic)"/>
         <param name="depth_info_topic" value="$(arg depth_info_topic)"/>

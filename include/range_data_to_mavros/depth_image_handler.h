@@ -38,6 +38,8 @@ class DepthImageHandler {
         tf2_ros::Buffer tf_buffer_;
         tf2_ros::TransformListener tf_listener_;
 
+        std::string vehicle_frame_;
+
         std::string depth_topic_;
         std::string depth_info_topic_;
         std::string mavros_obstacle_topic_;
