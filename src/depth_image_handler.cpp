@@ -12,6 +12,7 @@ DepthImageHandler::DepthImageHandler(ros::NodeHandle& node)
   : private_nh_("~")
   , nh_(node)
   , tf_listener_(tf_buffer_)
+  , vehicle_frame_("base_link")
   , depth_topic_("zed2i/zed_node/depth/depth_registered")
   , depth_info_topic_("zed2i/zed_node/depth/camera_info")
   , mavros_obstacle_topic_("/mavros/obstacle/send")
@@ -26,6 +27,7 @@ DepthImageHandler::DepthImageHandler(ros::NodeHandle& node)
   , vehicle_state_received_(false)
 {
 
+    private_nh_.param<std::string>("base_frame", vehicle_frame_, vehicle_frame_);
     private_nh_.param<std::string>("depth_image_topic", depth_topic_, depth_topic_);
     private_nh_.param<std::string>("depth_info_topic", depth_info_topic_, depth_info_topic_);
     private_nh_.param<std::string>("mavros_obstacle_topic", mavros_obstacle_topic_, mavros_obstacle_topic_);
@@ -207,7 +209,7 @@ void DepthImageHandler::publishObstacleDistances(const std_msgs::Header &header,
     }
     else {
         sensor_msgs::LaserScan obstacle_msg;
-        obstacle_msg.header.frame_id = "base_link";
+        obstacle_msg.header.frame_id = vehicle_frame_;
         obstacle_msg.header.stamp = header.stamp;
         obstacle_msg.range_max = max_depth_m;
         obstacle_msg.range_min = min_depth_m;
